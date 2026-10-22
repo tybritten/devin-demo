@@ -24,6 +24,7 @@ class AuditLog(models.Model):
         PERMISSION_CHANGE = "permission_change", "Permission change"
         API_ACCESS = "api_access", "API access"
         PURGE = "purge", "Retention purge"
+        EXTERNAL_WRITE = "external_write", "External write"
 
     created_at = models.DateTimeField(default=timezone.now, db_index=True)
     action = models.CharField(max_length=32, choices=Action.choices, db_index=True)

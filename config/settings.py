@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     "crispy_bootstrap5",
     "apps.core",
     "apps.audit",
+    "apps.integrations",
     *OPS_APPS,
 ]
 
@@ -126,6 +127,11 @@ AUDIT_RETENTION_DAYS = env.int("AUDIT_RETENTION_DAYS", default=365)
 AUDIT_API_ACCESS = env.bool("AUDIT_API_ACCESS", default=True)
 # Number of trusted reverse proxies (e.g. Azure Front Door / App Service) adding X-Forwarded-For.
 AUDIT_PROXY_COUNT = env.int("AUDIT_PROXY_COUNT", default=0)
+
+# Integrations: Entra token host (sovereign clouds differ) and retries for idempotent reads.
+ENTRA_AUTHORITY_HOST = env.str("ENTRA_AUTHORITY_HOST", default="https://login.microsoftonline.com")
+INTEGRATIONS_HTTP_RETRIES = env.int("INTEGRATIONS_HTTP_RETRIES", default=3)
+INTEGRATIONS_HTTP_BACKOFF = env.float("INTEGRATIONS_HTTP_BACKOFF", default=0.5)
 
 CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
 CRISPY_TEMPLATE_PACK = "bootstrap5"

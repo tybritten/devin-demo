@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}Integrations{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Integrations</h1>
+  {% if perms.integrations.add_externalsystem and user.is_staff %}<a href="{% url 'admin:integrations_externalsystem_add' %}" class="btn btn-primary">Register system</a>{% endif %}
+</div>
+<div class="card shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0 align-middle">
+      <thead class="table-light"><tr><th>System</th><th>Type</th><th>Access</th><th>Importers</th><th>Last run</th></tr></thead>
+      <tbody>
+        {% for system in systems %}
+        <tr>
+          <td><a href="{{ system.get_absolute_url }}" class="fw-semibold">{{ system.name }}</a><br><span class="small font-monospace text-body-secondary">{{ system.slug }}</span></td>
+          <td>{{ system.get_kind_display }}</td>
+          <td>{% include "integrations/_access.html" %}</td>
+          <td class="small font-monospace">{{ system.importer_names|join:", "|default:"—" }}</td>
+          <td>{% include "integrations/_run_status.html" with run=system.last_run %}{% if system.last_run %} <span class="small text-body-secondary" title="{{ system.last_run.started_at }}">{{ system.last_run.started_at|naturaltime }}</span>{% endif %}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="text-center text-body-secondary py-4">No external systems registered yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
