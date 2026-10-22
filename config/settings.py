@@ -1,5 +1,6 @@
 """Django settings. All environment-specific values come from env vars (see .env.example)."""
 
+from decimal import Decimal
 from pathlib import Path
 
 import environ
@@ -33,6 +34,8 @@ INSTALLED_APPS = [
     "crispy_bootstrap5",
     "apps.core",
     "apps.kyc",
+    "apps.refunds",
+    "apps.flags",
 ]
 
 MIDDLEWARE = [
@@ -104,6 +107,10 @@ STORAGES = {
     },
 }
 FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
+
+# Refunds above this amount need the `refunds.approve_over_limit` permission.
+REFUND_APPROVAL_LIMIT = Decimal(env.str("REFUND_APPROVAL_LIMIT", default="1000"))
+REFUND_CURRENCY = env.str("REFUND_CURRENCY", default="USD")
 
 CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
 CRISPY_TEMPLATE_PACK = "bootstrap5"

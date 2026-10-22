@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags humanize refund_tags ui_tags %}
+{% block title %}{{ refund.reference }}{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb">
+  <li class="breadcrumb-item"><a href="{% url 'refunds:dashboard' %}">Refunds</a></li>
+  <li class="breadcrumb-item active" aria-current="page">{{ refund.reference }}</li>
+</ol></nav>
+<div class="mb-4">
+  <h1 class="h3 mb-1">{{ refund.reference }} · {{ refund.customer_name }}</h1>
+  <div class="d-flex gap-2 align-items-center">
+    {% refund_status_badge refund %}
+    <span class="fw-semibold">{{ refund.amount|money }}</span>
+    {% if refund.over_limit %}<span class="badge text-bg-warning">Above approval limit</span>{% endif %}
+  </div>
+</div>
+<div class="row g-4">
+  <div class="col-lg-8">
+    <div class="card shadow-sm mb-4">
+      <div class="card-header">Request</div>
+      <div class="card-body">
+        <dl class="row mb-0">
+          <dt class="col-sm-4">Customer</dt><dd class="col-sm-8">{{ refund.customer_name }}</dd>
+          <dt class="col-sm-4">Customer reference</dt><dd class="col-sm-8">{{ refund.customer_ref|default:"—" }}</dd>
+          <dt class="col-sm-4">Order / transaction</dt><dd class="col-sm-8">{{ refund.order_ref|default:"—" }}</dd>
+          <dt class="col-sm-4">Reason</dt><dd class="col-sm-8">{{ refund.get_reason_display }}</dd>
+          <dt class="col-sm-4">Description</dt><dd class="col-sm-8" style="white-space: pre-line">{{ refund.description|default:"—" }}</dd>
+        </dl>
+      </div>
+    </div>
+    <div class="card shadow-sm">
+      <div class="card-header">Activity</div>
+      <div class="card-body">
+        {% if can_edit %}
+        <form method="post" action="{% url 'refunds:refund_comment' refund.pk %}" class="mb-4">
+          {% csrf_token %}
+          {{ comment_form|crispy }}
+          <button type="submit" class="btn btn-sm btn-outline-secondary">Comment</button>
+        </form>
+        {% endif %}
+        <ul class="timeline mb-0">
+          {% for event in events %}
+          <li>
+            <div class="small text-body-secondary"><strong class="text-body">{{ event.actor|person:"System" }}</strong> · <span title="{{ event.created_at }}">{{ event.created_at|naturaltime }}</span></div>
+            <div>
+              {% if event.kind == "status_changed" %}Moved from <strong>{{ event.get_from_status_display }}</strong> to <strong>{{ event.get_to_status_display }}</strong>
+              {% elif event.kind == "created" %}Requested the refund{% endif %}
+            </div>
+            {% if event.message %}<div class="bg-body-tertiary rounded p-2 mt-1" style="white-space: pre-line">{{ event.message }}</div>{% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    {% if transition_form %}
+    <div class="card shadow-sm mb-4 border-primary">
+      <div class="card-header">Decision / next step</div>
+      <div class="card-body">
+        <form method="post" action="{% url 'refunds:refund_transition' refund.pk %}">
+          {% csrf_token %}
+          {{ transition_form|crispy }}
+          <button type="submit" class="btn btn-primary">Update status</button>
+        </form>
+      </div>
+    </div>
+    {% elif refund.is_open and refund.status == "requested" and refund.requested_by == user %}
+    <div class="alert alert-secondary small">Someone else with approval rights needs to approve this refund.</div>
+    {% endif %}
+    <div class="card shadow-sm">
+      <div class="card-header">Details</div>
+      <div class="card-body">
+        <dl class="row mb-0 small">
+          <dt class="col-5">Requested by</dt><dd class="col-7">{{ refund.requested_by|person }}</dd>
+          <dt class="col-5">Requested</dt><dd class="col-7">{{ refund.created_at|date:"M j, Y H:i" }}</dd>
+          {% if refund.decided_at %}
+          <dt class="col-5">Decided by</dt><dd class="col-7">{{ refund.decided_by|person }}</dd>
+          <dt class="col-5">Decided</dt><dd class="col-7">{{ refund.decided_at|date:"M j, Y H:i" }}</dd>
+          {% endif %}
+          {% if refund.paid_at %}
+          <dt class="col-5">Paid by</dt><dd class="col-7">{{ refund.paid_by|person }}</dd>
+          <dt class="col-5">Paid</dt><dd class="col-7">{{ refund.paid_at|date:"M j, Y H:i" }}</dd>
+          <dt class="col-5">Payment ref</dt><dd class="col-7">{{ refund.payment_reference }}</dd>
+          {% endif %}
+        </dl>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

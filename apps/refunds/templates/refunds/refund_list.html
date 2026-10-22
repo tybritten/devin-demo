@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}All refunds{% endblock %}
+{% block content %}
+{% include "refunds/_nav.html" %}
+<ul class="nav nav-tabs mb-3">
+  {% for key, label in scopes %}
+  <li class="nav-item"><a class="nav-link{% if key == scope %} active{% endif %}" href="?scope={{ key }}">{{ label }}</a></li>
+  {% endfor %}
+</ul>
+<form method="get" class="row g-2 align-items-end mb-3">
+  <input type="hidden" name="scope" value="{{ scope }}">
+  <div class="col-md-5">
+    <label class="form-label small" for="id_q">Search</label>
+    <input type="search" class="form-control" name="q" id="id_q" value="{{ filter_form.q.value|default:'' }}" placeholder="Customer, RF-000123, customer or order ref">
+  </div>
+  <div class="col-md-3">
+    <label class="form-label small" for="id_reason">Reason</label>
+    <select name="reason" id="id_reason" class="form-select">
+      {% for value, label in filter_form.fields.reason.choices %}
+      <option value="{{ value }}"{% if filter_form.reason.value == value %} selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-md-4 d-flex gap-2">
+    <button type="submit" class="btn btn-outline-primary">Filter</button>
+    <a href="?scope={{ scope }}" class="btn btn-link">Reset</a>
+  </div>
+</form>
+<div class="card shadow-sm">
+  <div class="table-responsive">{% include "refunds/_table.html" with rows=refunds %}</div>
+  {% if page_obj.has_other_pages %}<div class="card-footer bg-transparent">{% include "includes/pagination.html" %}</div>{% endif %}
+</div>
+{% endblock %}

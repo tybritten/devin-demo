@@ -1,18 +1,7 @@
 import factory
-from django.contrib.auth import get_user_model
 
+from apps.core.tests.factories import UserFactory  # noqa: F401  (re-exported)
 from apps.kyc.models import Customer, ReviewCase
-
-
-class UserFactory(factory.django.DjangoModelFactory):
-    class Meta:
-        model = get_user_model()
-        django_get_or_create = ["username"]
-
-    username = factory.Sequence(lambda n: f"user{n}")
-    first_name = factory.Faker("first_name")
-    last_name = factory.Faker("last_name")
-    password = factory.django.Password("pw")
 
 
 class CustomerFactory(factory.django.DjangoModelFactory):

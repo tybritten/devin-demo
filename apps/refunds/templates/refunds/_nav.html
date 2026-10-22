@@ -1,0 +1,8 @@
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+  <h1 class="h3 mb-0">Refunds</h1>
+  <div class="d-flex gap-2">
+    <a href="{% url 'refunds:dashboard' %}" class="btn btn-outline-secondary{% if request.resolver_match.url_name == 'dashboard' %} active{% endif %}">Dashboard</a>
+    <a href="{% url 'refunds:refund_list' %}" class="btn btn-outline-secondary{% if request.resolver_match.url_name == 'refund_list' %} active{% endif %}">All refunds</a>
+    {% if perms.refunds.add_refund %}<a href="{% url 'refunds:refund_create' %}" class="btn btn-primary">New refund</a>{% endif %}
+  </div>
+</div>

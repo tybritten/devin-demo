@@ -43,11 +43,14 @@ config/            Project settings, root URLconf, WSGI/ASGI
 apps/
   core/            Shared building blocks: base models, home/launcher page, health check
   kyc/             KYC review queue (first Power Apps replacement)
+  refunds/         Refund request / approval / payment workflow + dashboard
+  flags/           Feature-flag admin panel + read-only JSON API
     models.py      Data model
     services.py    Business rules / state machine (the only place that mutates cases)
     forms.py       Input validation
     views.py       Thin HTTP layer
     roles.py       Default groups + permissions, synced after `migrate`
+    launcher.py    `tile(user)`: the app's home-page tile, or None without access
     templates/kyc/ App templates
     tests/
 templates/         Project-wide templates (base layout, navbar, login)
@@ -57,8 +60,10 @@ docs/              This file and future ADRs
 
 Adding a new app: `uv run python manage.py startapp <name> apps/<name>`, set
 `name = "apps.<name>"` in its `AppConfig`, add it to `INSTALLED_APPS`, mount its URLs in
-`config/urls.py` under its own prefix, add a nav link and a tile on the home page, and define
-its groups in a `roles.py`.
+`config/urls.py` under its own prefix, add a nav link, add a `launcher.tile` to
+`apps/core/views.py:TILE_PROVIDERS`, and define its groups in a `roles.py` (using
+`apps.core.roles.sync_roles`). Shared helpers live in `apps/core` (`forms.users_with_perm`,
+`templatetags/ui_tags`, `demo` for seed commands).
 
 ## Security model
 
@@ -115,6 +120,52 @@ stateDiagram-v2
 - **Case detail** (`/kyc/cases/<id>/`): customer info, documents, activity timeline, comment
   box, status transition form limited to what the current user may do, reassignment.
 - **New case** (`/kyc/cases/new/`): manual intake of customer + review details.
+
+## Refunds
+
+### Data model
+- **Refund**: customer name/ref, order ref, amount (`Decimal`, single currency set by
+  `REFUND_CURRENCY`), reason code, description, status, requester, decider, payer, payment ref.
+- **RefundEvent**: append-only audit trail (created, status change, comment); `PROTECT`ed.
+
+### Workflow
+```
+requested ──► approved ──► paid
+    │            │
+    ├──► rejected└──► cancelled
+    └──► cancelled
+```
+- Four-eyes: nobody approves or rejects a refund they requested.
+- Amounts above `REFUND_APPROVAL_LIMIT` need `approve_over_limit` (**Refunds Senior Approver**).
+- Only **Refunds Finance** (`mark_paid`) marks approved refunds paid, with a payment reference.
+- Reject/cancel need a comment. Requesters may cancel their own refunds while still requested.
+- Groups: **Refunds Requester**, **Refunds Approver**, **Refunds Senior Approver**, **Refunds Finance**.
+- Payment itself happens outside this app; the app records the reference.
+
+### Screens
+- **Dashboard** (`/refunds/`): totals pending / awaiting payment / paid (30d), approval rate,
+  30-day breakdown by reason, pending aging, and the user's own work lists.
+- **All refunds** (`/refunds/all/`): tabs by status, search by customer/RF-number/refs, reason filter.
+- **Detail** and **New refund**. Django admin is read-only for refunds.
+
+## Feature flags
+
+### Data model
+- **FeatureFlag**: immutable `key`, name, description, owner, `enabled` master switch,
+  `rollout_percentage` (0–100), `targets` (Postgres array of user/customer IDs), `is_archived`.
+- **FlagChange**: append-only history with a field-level `{field: [old, new]}` diff and comment.
+- **ApiClient**: named service credentials; only a SHA-256 hash of the token is stored.
+
+### Evaluation
+Off if not `enabled` or archived; on for everyone at 100%; otherwise on for listed targets and
+for targets whose stable bucket `sha256("<key>:<target>") % 100` is below the percentage.
+Raising the percentage only adds targets. Without a target, partial flags evaluate to off.
+
+### Screens and API
+- **Flags** (`/flags/`): state filter, search, one-click on/off. **Detail**: edit form, target
+  checker, change history, archive/restore. Groups: **Flags Viewer**, **Flags Editor**.
+- **API** (`/flags/api/v1/flags/`, `/flags/api/v1/flags/<key>/?target=`): GET only, bearer token.
+  Django admin is read-only for flags; API clients are managed there.
 
 ## Roadmap / open decisions
 

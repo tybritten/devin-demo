@@ -1,17 +1,14 @@
 import random
 from datetime import timedelta
 
-from django.conf import settings
-from django.contrib.auth import get_user_model
-from django.contrib.auth.models import Group
-from django.core.management.base import BaseCommand, CommandError
+from django.core.management.base import BaseCommand
 from django.utils import timezone
 
+from apps.core.demo import check_demo_allowed, demo_user
 from apps.kyc import services
 from apps.kyc.models import Customer, ReviewCase
 from apps.kyc.roles import APPROVER_GROUP, REVIEWER_GROUP
 
-LOCAL_HOSTS = {"localhost", "127.0.0.1", "[::1]", "0.0.0.0"}
 DEMO_USERS = [
     ("reviewer", "Riley", "Reviewer", REVIEWER_GROUP),
     ("approver", "Avery", "Approver", APPROVER_GROUP),
@@ -34,21 +31,8 @@ class Command(BaseCommand):
     help = "Create demo users (password: demo) and sample KYC cases. DEBUG only."
 
     def handle(self, *args, **options):
-        if not settings.DEBUG:
-            raise CommandError("Refusing to seed demo data with DEBUG=False.")
-        if not set(settings.ALLOWED_HOSTS) <= LOCAL_HOSTS:
-            raise CommandError("Refusing to seed demo users when ALLOWED_HOSTS is not local-only.")
-        User = get_user_model()
-        users = []
-        for username, first, last, group in DEMO_USERS:
-            user, created = User.objects.get_or_create(
-                username=username, defaults={"first_name": first, "last_name": last}
-            )
-            if created:
-                user.set_password("demo")
-                user.save()
-            user.groups.add(Group.objects.get(name=group))
-            users.append(user)
+        check_demo_allowed()
+        users = [demo_user(*spec) for spec in DEMO_USERS]
 
         rng = random.Random(42)
         today = timezone.localdate()

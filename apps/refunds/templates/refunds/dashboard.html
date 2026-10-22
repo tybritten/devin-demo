@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% load humanize refund_tags %}
+{% block title %}Refunds{% endblock %}
+{% block content %}
+{% include "refunds/_nav.html" %}
+<div class="row g-3 mb-4">
+  <div class="col-sm-6 col-xl-3"><div class="card shadow-sm h-100"><div class="card-body">
+    <div class="small text-body-secondary">Pending approval</div>
+    <div class="fs-3 fw-semibold">{{ totals.pending_count }}</div>
+    <div>{{ totals.pending_total|money }}</div>
+    {% if totals.oldest_pending %}<div class="small text-body-secondary">Oldest {{ totals.oldest_pending|naturaltime }}</div>{% endif %}
+  </div></div></div>
+  <div class="col-sm-6 col-xl-3"><div class="card shadow-sm h-100"><div class="card-body">
+    <div class="small text-body-secondary">Approved, awaiting payment</div>
+    <div class="fs-3 fw-semibold">{{ totals.approved_count }}</div>
+    <div>{{ totals.approved_total|money }}</div>
+  </div></div></div>
+  <div class="col-sm-6 col-xl-3"><div class="card shadow-sm h-100"><div class="card-body">
+    <div class="small text-body-secondary">Paid, last 30 days</div>
+    <div class="fs-3 fw-semibold">{{ totals.paid_count }}</div>
+    <div>{{ totals.paid_total|money }}</div>
+  </div></div></div>
+  <div class="col-sm-6 col-xl-3"><div class="card shadow-sm h-100"><div class="card-body">
+    <div class="small text-body-secondary">Approval rate, last 30 days</div>
+    <div class="fs-3 fw-semibold">{% if totals.approval_rate is not None %}{{ totals.approval_rate }}%{% else %}—{% endif %}</div>
+    <div class="small text-body-secondary">{{ totals.decided }} decided · {{ totals.rejected }} rejected</div>
+  </div></div></div>
+</div>
+
+<div class="row g-4">
+  <div class="col-xl-8">
+    {% if perms.refunds.approve_refund %}
+    <div class="card shadow-sm mb-4">
+      <div class="card-header">Waiting for your approval</div>
+      <div class="table-responsive">{% include "refunds/_table.html" with rows=approvals empty="Nothing waiting for you." %}</div>
+    </div>
+    {% endif %}
+    {% if perms.refunds.mark_paid %}
+    <div class="card shadow-sm mb-4">
+      <div class="card-header">Approved, waiting for payment</div>
+      <div class="table-responsive">{% include "refunds/_table.html" with rows=payments empty="Nothing to pay." %}</div>
+    </div>
+    {% endif %}
+    <div class="card shadow-sm">
+      <div class="card-header">My open requests</div>
+      <div class="table-responsive">{% include "refunds/_table.html" with rows=my_open empty="You have no open requests." %}</div>
+    </div>
+  </div>
+  <div class="col-xl-4">
+    <div class="card shadow-sm mb-4">
+      <div class="card-header">Requested in the last 30 days, by reason</div>
+      <ul class="list-group list-group-flush">
+        {% for row in by_reason %}
+        <li class="list-group-item">
+          <div class="d-flex justify-content-between small"><span>{{ row.label }} ({{ row.count }})</span><span>{{ row.total|money }}</span></div>
+          <div class="progress mt-1" role="progressbar" aria-label="{{ row.label }}" aria-valuenow="{{ row.pct }}" aria-valuemin="0" aria-valuemax="100" style="height: 6px">
+            <div class="progress-bar" style="width: {{ row.pct }}%"></div>
+          </div>
+        </li>
+        {% empty %}
+        <li class="list-group-item text-body-secondary">No refunds requested.</li>
+        {% endfor %}
+      </ul>
+    </div>
+    <div class="card shadow-sm">
+      <div class="card-header">Pending approval, by age</div>
+      <ul class="list-group list-group-flush">
+        {% for label, count in aging %}
+        <li class="list-group-item d-flex justify-content-between"><span>{{ label }}</span><span class="fw-semibold">{{ count }}</span></li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
+{% endblock %}

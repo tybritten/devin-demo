@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags humanize ui_tags %}
+{% block title %}{{ flag.key }}{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb">
+  <li class="breadcrumb-item"><a href="{% url 'flags:flag_list' %}">Feature flags</a></li>
+  <li class="breadcrumb-item active" aria-current="page">{{ flag.key }}</li>
+</ol></nav>
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-4">
+  <div>
+    <h1 class="h3 mb-1 font-monospace">{{ flag.key }}</h1>
+    <div class="d-flex gap-2 align-items-center">{% include "flags/_state.html" %} <span class="text-body-secondary">{{ flag.name }}</span></div>
+  </div>
+  {% if perms.flags.change_featureflag %}
+  <form method="post" action="{% url 'flags:flag_archive' flag.pk %}" onsubmit="return confirm('{{ flag.is_archived|yesno:'Restore,Archive' }} {{ flag.key }}?')">
+    {% csrf_token %}
+    <input type="hidden" name="archived" value="{{ flag.is_archived|yesno:'0,1' }}">
+    <button type="submit" class="btn btn-outline-secondary">{{ flag.is_archived|yesno:"Restore,Archive (turns it off)" }}</button>
+  </form>
+  {% endif %}
+</div>
+<div class="row g-4">
+  <div class="col-lg-7">
+    <div class="card shadow-sm">
+      <div class="card-header">Configuration</div>
+      <div class="card-body">
+        {% if form %}
+        <form method="post" novalidate>
+          {% csrf_token %}
+          {{ form|crispy }}
+          <button type="submit" class="btn btn-primary">Save changes</button>
+        </form>
+        {% else %}
+        <dl class="row mb-0">
+          <dt class="col-sm-4">Description</dt><dd class="col-sm-8">{{ flag.description|default:"—" }}</dd>
+          <dt class="col-sm-4">Owner</dt><dd class="col-sm-8">{{ flag.owner|person }}</dd>
+          <dt class="col-sm-4">Enabled</dt><dd class="col-sm-8">{{ flag.enabled|yesno:"Yes,No" }}</dd>
+          <dt class="col-sm-4">Rollout</dt><dd class="col-sm-8">{{ flag.rollout_percentage }}%</dd>
+          <dt class="col-sm-4">Targets</dt><dd class="col-sm-8">{{ flag.targets|join:", "|default:"—" }}</dd>
+        </dl>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-5">
+    <div class="card shadow-sm mb-4">
+      <div class="card-header">Check a target</div>
+      <div class="card-body">
+        <form method="get" class="d-flex gap-2">
+          <input type="text" name="target" class="form-control" value="{{ target }}" placeholder="User or customer ID" aria-label="Target ID">
+          <button type="submit" class="btn btn-outline-primary">Check</button>
+        </form>
+        {% if target %}
+        <div class="mt-3">{{ target }} → {% if target_result %}<span class="badge text-bg-success">On</span>{% else %}<span class="badge text-bg-secondary">Off</span>{% endif %}</div>
+        {% endif %}
+        <p class="small text-body-secondary mt-3 mb-0">Services read flags from <code>/flags/api/v1/flags/</code> with an API token (created in Admin → API clients).</p>
+      </div>
+    </div>
+    <div class="card shadow-sm">
+      <div class="card-header">History</div>
+      <div class="card-body">
+        <ul class="timeline mb-0">
+          {% for change in history %}
+          <li>
+            <div class="small text-body-secondary"><strong class="text-body">{{ change.actor|person:"System" }}</strong> · {{ change.get_action_display }} · <span title="{{ change.created_at }}">{{ change.created_at|naturaltime }}</span></div>
+            <ul class="small mb-1 ps-3">
+              {% for field, values in change.changes.items %}
+              <li><span class="font-monospace">{{ field }}</span>: {{ values.0|default_if_none:"—" }} → <strong>{{ values.1|default_if_none:"—" }}</strong></li>
+              {% endfor %}
+            </ul>
+            {% if change.comment %}<div class="bg-body-tertiary rounded p-2" style="white-space: pre-line">{{ change.comment }}</div>{% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
