@@ -9,6 +9,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 from django.views.generic import DetailView, ListView
 
+from apps.audit.log import Action, log_view
+
 from . import services
 from .forms import (
     AssignForm,
@@ -102,6 +104,7 @@ class CaseDetailView(PermissionRequiredMixin, DetailView):
         ctx = super().get_context_data(**kwargs)
         case = self.object
         user = self.request.user
+        log_view(self.request, case)
         statuses = services.allowed_transitions(case, user)
         ctx.update(
             events=case.events.select_related("actor"),
@@ -248,4 +251,5 @@ def document_upload(request, pk):
 @permission_required(["kyc.view_reviewcase", "kyc.view_casedocument"], raise_exception=True)
 def document_download(request, pk):
     doc = get_object_or_404(CaseDocument, pk=pk)
+    log_view(request, doc, action=Action.DOWNLOAD)
     return FileResponse(doc.file.open("rb"), as_attachment=True, filename=doc.original_name)

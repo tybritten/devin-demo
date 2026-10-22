@@ -113,4 +113,4 @@ class Command(BaseCommand):
         path.write_text(source[: match.end("body")] + entry + source[match.end("body") :])
 
     def _run(self, *args, check=True):
-        subprocess.run([sys.executable, *args], cwd=settings.BASE_DIR, check=check)
+        subprocess.run([sys.executable, *args], cwd=settings.BASE_DIR, check=check)  # noqa: S603

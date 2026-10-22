@@ -113,6 +113,52 @@ commands, `tests/factories.UserFactory`).
   permission-checked view.
 - Production hardening (secure cookies, HSTS, SSL redirect) is driven by env vars and verified
   in CI with `manage.py check --deploy`.
+- Sessions expire after `SESSION_COOKIE_AGE` seconds idle (default 2h). Password login locks a
+  username for `LOGIN_LOCKOUT_MINUTES` after `LOGIN_LOCKOUT_ATTEMPTS` failures (default 5 in 15m),
+  counted from the audit log.
+
+### Audit log (`apps/audit`)
+
+One system-wide, append-only `AuditLog` table. Per-app event tables (`CaseEvent`, `RefundEvent`,
+`FlagChange`, generated `<Model>Event`) stay as each record's business timeline; `AuditLog` is the
+security trail across everything.
+
+| Recorded | How |
+|---|---|
+| Create / update (field diff) / delete of every model in an ops app, plus `User` and `Group` | `pre_save`/`post_save`/`post_delete` signals; new apps are covered automatically |
+| Group membership and group/user permission changes | `m2m_changed` |
+| Logins, logouts, failed logins (incl. lockouts) | Django auth signals |
+| Views/downloads of sensitive records (KYC cases, documents) | `apps.audit.log.log_view(request, obj)` in the view |
+| Token-authenticated API calls | `record(Action.API_ACCESS, ...)` in the API decorator (`AUDIT_API_ACCESS`) |
+
+- Each entry stores actor (plus a username snapshot), IP, user agent,
+  method, path and a request ID. `AuditContextMiddleware` reuses a well-formed upstream
+  `X-Request-ID` (e.g. from Azure Front Door) or generates one, and echoes it in the response.
+  Set `AUDIT_PROXY_COUNT` to the number of trusted proxies so the client IP is taken from
+  `X-Forwarded-For`.
+- Users are never deleted: a `pre_delete` guard raises `ProtectedError`, and the user admin
+  has no delete, only **Deactivate** / **Reactivate** actions (`apps.core.users`). Inactive
+  users can't sign in, their existing sessions stop working, and they drop out of assignee
+  pickers, while their name stays on the records and audit entries they touched.
+- Fields whose names contain `password`, `secret`, `token`, `api_key`, `private_key` or
+  `credential` are logged only as a masked fingerprint.
+- A Postgres trigger rejects `UPDATE`/`DELETE` on the table. The only exception is
+  `manage.py purge_audit_log`, which deletes entries older than `AUDIT_RETENTION_DAYS`
+  (default 365) inside a transaction that sets `audit.allow_purge`, then logs the purge.
+  Schedule it daily (e.g. an Azure Container Apps job). The DB owner can still drop the
+  trigger; for tamper-evidence beyond that, run the app as a non-owner role or export to WORM storage.
+- Browse at `/audit/` (group **Auditor**) or read-only in the admin.
+
+### Access-boundary tests
+
+`apps/core/tests/test_access_boundaries.py` walks every URL in the project (admin excluded) and
+asserts: anonymous users are redirected to login, a logged-in user with no roles gets 403/405 on
+every app URL (GET and POST), and no app's roles grant access to another app's URLs. New apps
+and URLs are covered automatically; anything reachable without a login or without an app role
+must be added to the `PUBLIC` / `ANY_AUTHENTICATED` allowlists in that file, which makes the
+exception visible in review.
+
+CI also runs Ruff's `S` (bandit) rules and `pip-audit` against the locked dependencies.
 
 ## KYC review queue
 

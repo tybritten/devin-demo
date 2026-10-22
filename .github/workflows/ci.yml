@@ -36,6 +36,15 @@ jobs:
           SECURE_HSTS_SECONDS: "3600"
       - run: uv run pytest
 
+  # Known-vulnerable dependencies fail the build.
+  dependency-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv export --locked --format requirements-txt --no-hashes --no-emit-project > requirements-audit.txt
+      - run: uvx pip-audit --strict -r requirements-audit.txt
+
   # Generates a throwaway app with `startopsapp` and runs its tests, so the template can't rot.
   scaffold:
     runs-on: ubuntu-latest

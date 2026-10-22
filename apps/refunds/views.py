@@ -10,6 +10,8 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 from django.views.generic import DetailView, ListView, TemplateView
 
+from apps.audit.log import log_view
+
 from . import services
 from .forms import CommentForm, RefundFilterForm, RefundForm, TransitionForm
 from .models import Refund
@@ -142,6 +144,7 @@ class RefundDetailView(PermissionRequiredMixin, DetailView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         refund, user = self.object, self.request.user
+        log_view(self.request, refund)
         statuses = services.allowed_transitions(refund, user)
         can_edit = refund.is_open and user.has_perm("refunds.change_refund")
         ctx.update(

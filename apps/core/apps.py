@@ -7,4 +7,6 @@ class CoreConfig(AppConfig):
     label = "core"
 
     def ready(self):
-        from . import checks  # noqa: F401
+        from . import checks, users  # noqa: F401
+
+        users.connect()

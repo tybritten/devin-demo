@@ -2,10 +2,13 @@
 
 from functools import wraps
 
+from django.conf import settings
 from django.contrib.auth.decorators import login_not_required
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET
+
+from apps.audit.log import Action, record
 
 from . import services
 from .models import ApiClient, FeatureFlag
@@ -19,8 +22,16 @@ def api_client_required(view):
     @wraps(view)
     def wrapper(request, *args, **kwargs):
         scheme, _, token = request.headers.get("Authorization", "").partition(" ")
-        if scheme.lower() != "bearer" or not ApiClient.authenticate(token.strip()):
+        client = ApiClient.authenticate(token.strip()) if scheme.lower() == "bearer" else None
+        if client is None:
             return JsonResponse({"error": "invalid or missing API token"}, status=401)
+        if settings.AUDIT_API_ACCESS:
+            record(
+                Action.API_ACCESS,
+                actor_label=f"api:{client.name}"[:150],
+                request=request,
+                changes={"view": view.__name__, "args": kwargs, "query": request.GET.dict()},
+            )
         return view(request, *args, **kwargs)
 
     return wrapper

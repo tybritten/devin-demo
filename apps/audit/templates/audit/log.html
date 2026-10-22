@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Audit log{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">Audit log</h1>
+<form method="get" class="row g-2 align-items-end mb-3">
+  <div class="col-md-3">
+    <label class="form-label small" for="id_q">Search</label>
+    <input type="search" class="form-control" name="q" id="id_q" value="{{ filter_form.q.value|default:'' }}" placeholder="User, record or request ID">
+  </div>
+  <div class="col-md-2">
+    <label class="form-label small" for="id_action">Action</label>
+    {{ filter_form.action }}
+  </div>
+  <div class="col-md-2">
+    <label class="form-label small" for="id_content_type">Record type</label>
+    {{ filter_form.content_type }}
+  </div>
+  <div class="col-md-1">
+    <label class="form-label small" for="id_object_id">Record ID</label>
+    {{ filter_form.object_id }}
+  </div>
+  <div class="col-md-2">
+    <label class="form-label small" for="id_date_from">From / to</label>
+    <div class="d-flex gap-1">{{ filter_form.date_from }}{{ filter_form.date_to }}</div>
+  </div>
+  <div class="col-md-2 d-flex gap-2">
+    <button type="submit" class="btn btn-outline-primary">Filter</button>
+    <a href="{% url 'audit:log' %}" class="btn btn-link">Reset</a>
+  </div>
+</form>
+<div class="card shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-sm table-hover mb-0 align-middle">
+      <thead class="table-light"><tr><th>When</th><th>Who</th><th>Action</th><th>Record</th><th>Details</th><th>Source</th></tr></thead>
+      <tbody>
+        {% for e in entries %}
+        <tr>
+          <td class="text-nowrap small">{{ e.created_at|date:"Y-m-d H:i:s" }}</td>
+          <td>{{ e.actor_label|default:"system" }}</td>
+          <td><span class="badge text-bg-{% if e.action == 'login_failed' or e.action == 'delete' %}danger{% elif e.action == 'permission_change' %}warning{% else %}secondary{% endif %}">{{ e.get_action_display }}</span></td>
+          <td class="small">{% if e.content_type %}<span class="text-body-secondary">{{ e.content_type.app_label }}.{{ e.content_type.model }} #{{ e.object_id }}</span><br>{% endif %}{{ e.object_repr }}</td>
+          <td class="small">{% if e.changes %}<details><summary>Show</summary><pre class="mb-0 small">{{ e.changes|pprint }}</pre></details>{% endif %}</td>
+          <td class="small text-body-secondary">{{ e.ip_address|default:"" }}{% if e.method %}<br>{{ e.method }} {{ e.path }}{% endif %}{% if e.request_id %}<br><span class="font-monospace">{{ e.request_id|truncatechars:14 }}</span>{% endif %}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="text-center text-body-secondary py-4">No audit entries match.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if page_obj.has_other_pages %}<div class="card-footer bg-transparent">{% include "includes/pagination.html" %}</div>{% endif %}
+</div>
+{% endblock %}

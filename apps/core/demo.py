@@ -5,8 +5,8 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.core.management.base import CommandError
 
-LOCAL_HOSTS = {"localhost", "127.0.0.1", "[::1]", "0.0.0.0"}
-DEMO_PASSWORD = "demo"
+LOCAL_HOSTS = {"localhost", "127.0.0.1", "[::1]", "0.0.0.0"}  # noqa: S104 - allowlist, not a bind
+DEMO_PASSWORD = "demo"  # noqa: S105 - local-only demo users, guarded by check_demo_allowed
 
 
 def check_demo_allowed():

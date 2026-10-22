@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     "crispy_forms",
     "crispy_bootstrap5",
     "apps.core",
+    "apps.audit",
     *OPS_APPS,
 ]
 
@@ -51,6 +52,7 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.auth.middleware.LoginRequiredMiddleware",
+    "apps.audit.middleware.AuditContextMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -118,10 +120,24 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
 REFUND_APPROVAL_LIMIT = Decimal(env.str("REFUND_APPROVAL_LIMIT", default="1000"))
 REFUND_CURRENCY = env.str("REFUND_CURRENCY", default="USD")
 
+# Audit log: entries older than this are deleted by `manage.py purge_audit_log`.
+AUDIT_RETENTION_DAYS = env.int("AUDIT_RETENTION_DAYS", default=365)
+# Record every token-authenticated API call (e.g. flag evaluations).
+AUDIT_API_ACCESS = env.bool("AUDIT_API_ACCESS", default=True)
+# Number of trusted reverse proxies (e.g. Azure Front Door / App Service) adding X-Forwarded-For.
+AUDIT_PROXY_COUNT = env.int("AUDIT_PROXY_COUNT", default=0)
+
 CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
 CRISPY_TEMPLATE_PACK = "bootstrap5"
 
-SESSION_COOKIE_AGE = env.int("SESSION_COOKIE_AGE", default=60 * 60 * 8)
+# Idle timeout: the session expires after this many seconds without a request.
+SESSION_COOKIE_AGE = env.int("SESSION_COOKIE_AGE", default=60 * 60 * 2)
+SESSION_SAVE_EVERY_REQUEST = True
+CSRF_COOKIE_HTTPONLY = True
+SECURE_REFERRER_POLICY = "same-origin"
+# Password-login lockout per username, counted from LOGIN_FAILED audit entries.
+LOGIN_LOCKOUT_ATTEMPTS = env.int("LOGIN_LOCKOUT_ATTEMPTS", default=5)
+LOGIN_LOCKOUT_MINUTES = env.int("LOGIN_LOCKOUT_MINUTES", default=15)
 SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SECURE = not DEBUG
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
