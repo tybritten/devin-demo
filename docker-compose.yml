@@ -1,0 +1,34 @@
+# Local development. `docker compose up db` + `uv run manage.py runserver` is the usual loop;
+# `docker compose --profile full up` runs the production-style container against the same database.
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: opsapps
+      POSTGRES_PASSWORD: opsapps
+      POSTGRES_DB: opsapps
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "opsapps"]
+      interval: 5s
+      retries: 10
+
+  web:
+    build: .
+    command: sh -c "python manage.py migrate --noinput && gunicorn config.wsgi:application --bind 0.0.0.0:8000 --reload"
+    environment:
+      DEBUG: "true"
+      SECRET_KEY: dev-insecure-change-me
+      ALLOWED_HOSTS: localhost,127.0.0.1
+      DATABASE_URL: postgres://opsapps:opsapps@db:5432/opsapps
+    ports: ["8000:8000"]
+    volumes: [media:/app/media]
+    depends_on:
+      db:
+        condition: service_healthy
+    profiles: [full]
+
+volumes:
+  pgdata:
+  media:

@@ -1,0 +1,45 @@
+[project]
+name = "opsapps"
+version = "0.1.0"
+description = "Internal operations apps (Power Apps replacements) built on Django + Postgres"
+readme = "README.md"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "django>=5.2,<5.3",
+    "psycopg[binary]>=3.2",
+    "django-environ>=0.12",
+    "whitenoise>=6.9",
+    "gunicorn>=23",
+    "django-crispy-forms>=2.4",
+    "crispy-bootstrap5>=2025.6",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "pytest-django>=4.11",
+    "factory-boy>=3.3",
+    "ruff>=0.12",
+    "pre-commit>=4",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings"
+python_files = ["tests.py", "test_*.py"]
+addopts = "--reuse-db"
+filterwarnings = ["ignore:No directory at:UserWarning"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+extend-exclude = ["**/migrations/*"]
+force-exclude = true
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "DJ", "SIM"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["config", "apps"]

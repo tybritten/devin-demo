@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags %}
+{% block title %}New KYC case{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'kyc:queue' %}">KYC Queue</a></li>
+    <li class="breadcrumb-item active" aria-current="page">New case</li>
+  </ol>
+</nav>
+<h1 class="h3 mb-4">New KYC case</h1>
+<form method="post" novalidate>
+  {% csrf_token %}
+  <div class="row g-4">
+    <div class="col-lg-6">
+      <div class="card shadow-sm h-100">
+        <div class="card-header">Customer</div>
+        <div class="card-body">
+          <p class="small text-body-secondary">If the external reference matches an existing customer, the case is linked to that customer and the other customer fields are ignored.</p>
+          {{ customer_form|crispy }}
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="card shadow-sm h-100">
+        <div class="card-header">Review</div>
+        <div class="card-body">{{ case_form|crispy }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="mt-4 d-flex gap-2">
+    <button type="submit" class="btn btn-primary">Create case</button>
+    <a href="{% url 'kyc:queue' %}" class="btn btn-outline-secondary">Cancel</a>
+  </div>
+</form>
+{% endblock %}
