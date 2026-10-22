@@ -13,9 +13,10 @@ from .models import AuditLog
 
 def is_locked_out(username):
     since = timezone.now() - timedelta(minutes=settings.LOGIN_LOCKOUT_MINUTES)
+    # Attempts rejected by the lockout itself don't count, so the lock always expires on time.
     failures = AuditLog.objects.filter(
         action=Action.LOGIN_FAILED, changes__username=username, created_at__gte=since
-    )
+    ).exclude(changes__contains={"reason": "locked_out"})
     return failures.count() >= settings.LOGIN_LOCKOUT_ATTEMPTS
 
 
@@ -30,6 +31,7 @@ class LockoutAuthenticationForm(AuthenticationForm):
         if username and is_locked_out(username):
             record(
                 Action.LOGIN_FAILED,
+                actor=None,
                 request=self.request,
                 changes={"username": username, "reason": "locked_out"},
             )

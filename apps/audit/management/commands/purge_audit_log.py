@@ -31,9 +31,14 @@ class Command(BaseCommand):
                 # Only this transaction may delete; the trigger blocks every other UPDATE/DELETE.
                 cursor.execute("SET LOCAL audit.allow_purge = 'on'")
             deleted, _ = old.delete()
-        record(
-            Action.PURGE,
-            actor_label="system:purge_audit_log",
-            changes={"older_than": cutoff.isoformat(), "deleted": deleted, "retention_days": days},
-        )
+            record(
+                Action.PURGE,
+                actor=None,
+                actor_label="system:purge_audit_log",
+                changes={
+                    "older_than": cutoff.isoformat(),
+                    "deleted": deleted,
+                    "retention_days": days,
+                },
+            )
         self.stdout.write(self.style.SUCCESS(f"Deleted {deleted} audit entries."))

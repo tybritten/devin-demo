@@ -12,7 +12,8 @@ from apps.core.registry import ops_apps
 
 from .log import Action, record
 
-MASKED_FIELDS = {"password", "token_hash"}
+# Any field whose name contains one of these is logged only as a fingerprint.
+MASKED_NAME_PARTS = ("password", "secret", "token", "api_key", "private_key", "credential")
 IGNORED_FIELDS = {"last_login", "last_used_at", "updated_at"}
 MASK = "********"
 
@@ -31,7 +32,7 @@ def _snapshot(instance):
         if field.name in IGNORED_FIELDS:
             continue
         value = field.value_from_object(instance)
-        if field.name in MASKED_FIELDS:
+        if any(part in field.name.lower() for part in MASKED_NAME_PARTS):
             # Hash-of-a-hash fingerprint: shows that it changed, reveals nothing usable.
             value = f"{MASK}{hashlib.sha256(str(value).encode()).hexdigest()[:8]}" if value else ""
         values[field.attname] = json.loads(json.dumps(value, cls=DjangoJSONEncoder, default=str))
@@ -110,7 +111,7 @@ def _logged_out(sender, request, user, **kwargs):
 
 def _login_failed(sender, credentials, request=None, **kwargs):
     username = str(credentials.get("username", ""))[:150]
-    record(Action.LOGIN_FAILED, request=request, changes={"username": username})
+    record(Action.LOGIN_FAILED, actor=None, request=request, changes={"username": username})
 
 
 def connect():

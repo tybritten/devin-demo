@@ -136,7 +136,8 @@ security trail across everything.
   `X-Request-ID` (e.g. from Azure Front Door) or generates one, and echoes it in the response.
   Set `AUDIT_PROXY_COUNT` to the number of trusted proxies so the client IP is taken from
   `X-Forwarded-For`.
-- Secrets (`password`, `token_hash`) are logged only as a masked fingerprint.
+- Fields whose names contain `password`, `secret`, `token`, `api_key`, `private_key` or
+  `credential` are logged only as a masked fingerprint.
 - A Postgres trigger rejects `UPDATE`/`DELETE` on the table. The only exception is
   `manage.py purge_audit_log`, which deletes entries older than `AUDIT_RETENTION_DAYS`
   (default 365) inside a transaction that sets `audit.allow_purge`, then logs the purge.

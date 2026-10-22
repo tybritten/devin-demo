@@ -212,3 +212,46 @@ def test_login_lockout_after_repeated_failures(client, settings):
     settings.LOGIN_LOCKOUT_MINUTES = 0
     client.post(reverse("login"), {"username": "carol", "password": "pw"})
     assert client.session["_auth_user_id"]
+
+
+def test_malformed_forwarded_ip_falls_back_to_remote_addr(client, settings):
+    settings.AUDIT_PROXY_COUNT = 1
+    client.post(
+        reverse("login"),
+        {"username": "nobody", "password": "x"},
+        HTTP_X_FORWARDED_FOR="not-an-ip",
+        REMOTE_ADDR="10.9.8.7",
+    )
+    assert entries(Action.LOGIN_FAILED).get().ip_address == "10.9.8.7"
+
+
+def test_failed_login_from_a_logged_in_session_has_no_actor(client):
+    client.force_login(UserFactory(username="sessionuser"))
+    client.post(reverse("login"), {"username": "victim", "password": "x"})
+    failed = entries(Action.LOGIN_FAILED).get()
+    assert failed.actor is None and failed.actor_label == ""
+    assert failed.changes == {"username": "victim"}
+
+
+def test_lockout_attempts_do_not_extend_the_lock(client, settings):
+    settings.LOGIN_LOCKOUT_ATTEMPTS = 2
+    UserFactory(username="dave")
+    for _ in range(2):
+        client.post(reverse("login"), {"username": "dave", "password": "wrong"})
+    old = timezone.now() - timedelta(minutes=settings.LOGIN_LOCKOUT_MINUTES + 1)
+    with transaction.atomic():
+        from django.db import connection
+
+        with connection.cursor() as cursor:
+            cursor.execute("SET LOCAL audit.allow_purge = 'on'")
+        AuditLog.objects.filter(action=Action.LOGIN_FAILED).delete()
+    for _ in range(2):
+        AuditLog.objects.create(
+            action=Action.LOGIN_FAILED, changes={"username": "dave"}, created_at=old
+        )
+    for _ in range(5):
+        AuditLog.objects.create(
+            action=Action.LOGIN_FAILED, changes={"username": "dave", "reason": "locked_out"}
+        )
+    client.post(reverse("login"), {"username": "dave", "password": "pw"})
+    assert client.session["_auth_user_id"]
