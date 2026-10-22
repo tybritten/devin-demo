@@ -122,13 +122,19 @@ def case_create(request):
         existing = None
         if ref := request.POST.get("external_ref", "").strip():
             existing = Customer.objects.filter(external_ref=ref).first()
-        customer_form = CustomerForm(request.POST, instance=existing)
+        customer_form = CustomerForm(request.POST)
         case_form = CaseForm(request.POST)
-        if customer_form.is_valid() and case_form.is_valid():
+        # An existing customer is linked as-is; intake never edits customer records.
+        customer_ok = existing is not None or customer_form.is_valid()
+        if customer_ok and case_form.is_valid():
             with transaction.atomic():
-                customer = customer_form.save()
+                customer = existing or customer_form.save()
                 case = services.create_case(
                     customer=customer, actor=request.user, **case_form.cleaned_data
+                )
+            if existing:
+                messages.info(
+                    request, f"Linked to existing customer {customer}; their details are unchanged."
                 )
             messages.success(request, f"Created {case.reference}.")
             return redirect(case)
@@ -215,7 +221,10 @@ def case_comment(request, pk):
 
 
 @require_POST
-@permission_required("kyc.add_casedocument", raise_exception=True)
+@permission_required(
+    ["kyc.view_reviewcase", "kyc.change_reviewcase", "kyc.add_casedocument"],
+    raise_exception=True,
+)
 def document_upload(request, pk):
     case = get_object_or_404(ReviewCase, pk=pk)
     form = DocumentForm(request.POST, request.FILES)
@@ -223,18 +232,20 @@ def document_upload(request, pk):
         for errors in form.errors.values():
             for error in errors:
                 messages.error(request, error)
-    else:
-        services.add_document(
+    elif _run_action(
+        request,
+        lambda: services.add_document(
             case,
             actor=request.user,
             document_type=form.cleaned_data["document_type"],
             file=form.cleaned_data["file"],
-        )
+        ),
+    ):
         messages.success(request, "Document uploaded.")
     return redirect(case)
 
 
-@permission_required("kyc.view_casedocument", raise_exception=True)
+@permission_required(["kyc.view_reviewcase", "kyc.view_casedocument"], raise_exception=True)
 def document_download(request, pk):
     doc = get_object_or_404(CaseDocument, pk=pk)
     return FileResponse(doc.file.open("rb"), as_attachment=True, filename=doc.original_name)

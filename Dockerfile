@@ -16,6 +16,8 @@ COPY . .
 RUN SECRET_KEY=build DATABASE_URL=postgres://build/build python manage.py collectstatic --noinput
 
 RUN useradd --create-home app && mkdir -p /app/media && chown app /app/media
+# Uploaded KYC documents. Mount persistent storage here (or switch STORAGES to blob storage).
+VOLUME /app/media
 USER app
 
 EXPOSE 8000

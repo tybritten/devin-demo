@@ -11,6 +11,7 @@ from apps.kyc import services
 from apps.kyc.models import Customer, ReviewCase
 from apps.kyc.roles import APPROVER_GROUP, REVIEWER_GROUP
 
+LOCAL_HOSTS = {"localhost", "127.0.0.1", "[::1]", "0.0.0.0"}
 DEMO_USERS = [
     ("reviewer", "Riley", "Reviewer", REVIEWER_GROUP),
     ("approver", "Avery", "Approver", APPROVER_GROUP),
@@ -35,6 +36,8 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         if not settings.DEBUG:
             raise CommandError("Refusing to seed demo data with DEBUG=False.")
+        if not set(settings.ALLOWED_HOSTS) <= LOCAL_HOSTS:
+            raise CommandError("Refusing to seed demo users when ALLOWED_HOSTS is not local-only.")
         User = get_user_model()
         users = []
         for username, first, last, group in DEMO_USERS:

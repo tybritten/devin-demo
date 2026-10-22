@@ -65,7 +65,7 @@ def test_create_case_reuses_customer_by_external_ref(client, reviewer):
     assert resp.status_code == 302 and resp["Location"] == case.get_absolute_url()
     assert Customer.objects.count() == 1
     existing.refresh_from_db()
-    assert (existing.legal_name, existing.country) == ("New Name", "GB")
+    assert (existing.legal_name, existing.country) == ("Old Name", "US")
     assert case.customer == existing and case.created_by == reviewer
 
 
@@ -117,3 +117,19 @@ def test_document_upload_rejects_bad_extension(client, reviewer):
         {"document_type": "other", "file": upload},
     )
     assert not CaseDocument.objects.exists()
+
+
+def test_document_upload_blocked_on_closed_case(client, reviewer):
+    case = ReviewCaseFactory(status=Status.APPROVED)
+    client.force_login(reviewer)
+    upload = SimpleUploadedFile("late.pdf", b"%PDF", content_type="application/pdf")
+    client.post(
+        reverse("kyc:document_upload", args=[case.pk]),
+        {"document_type": "other", "file": upload},
+    )
+    assert not CaseDocument.objects.exists()
+
+
+def test_media_not_publicly_routed(client, reviewer, settings):
+    client.force_login(reviewer)
+    assert client.get("/media/kyc/anything.pdf").status_code == 404

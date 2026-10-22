@@ -13,8 +13,12 @@ class CustomerAdmin(admin.ModelAdmin):
 class CaseDocumentInline(admin.TabularInline):
     model = CaseDocument
     extra = 0
+    can_delete = False
     fields = ["document_type", "original_name", "file", "uploaded_by", "created_at"]
     readonly_fields = fields
+
+    def has_add_permission(self, request, obj=None):
+        return False
 
 
 class CaseEventInline(admin.TabularInline):
@@ -34,9 +38,10 @@ class ReviewCaseAdmin(admin.ModelAdmin):
     list_filter = ["status", "risk_rating", "review_type"]
     search_fields = ["customer__legal_name", "customer__external_ref"]
     list_select_related = ["customer", "assigned_to"]
-    raw_id_fields = ["customer"]
     readonly_fields = [
+        "customer",
         "status",
+        "assigned_to",
         "created_by",
         "decided_by",
         "decided_at",
@@ -44,6 +49,13 @@ class ReviewCaseAdmin(admin.ModelAdmin):
         "updated_at",
     ]
     inlines = [CaseDocumentInline, CaseEventInline]
+
+    # Creation, assignment and status changes go through apps.kyc.services so they are audited.
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(CaseEvent)

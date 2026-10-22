@@ -76,3 +76,23 @@ def test_assign_logs_event(reviewer, approver):
     services.assign(case, assignee=reviewer, actor=approver)
     services.assign(case, assignee=reviewer, actor=approver)
     assert case.events.filter(kind=CaseEvent.Kind.ASSIGNED).count() == 1
+
+
+def test_cannot_assign_to_user_without_kyc_access(reviewer, outsider):
+    case = ReviewCaseFactory()
+    with pytest.raises(ValidationError):
+        services.assign(case, assignee=outsider, actor=reviewer)
+
+
+def test_kyc_staff_excludes_outsiders(reviewer, approver, outsider):
+    from apps.kyc.forms import kyc_staff
+
+    assert set(kyc_staff()) == {reviewer, approver}
+
+
+def test_case_with_history_cannot_be_deleted(reviewer):
+    from django.db.models import ProtectedError
+
+    case = services.create_case(customer=CustomerFactory(), actor=reviewer)
+    with pytest.raises(ProtectedError):
+        case.delete()

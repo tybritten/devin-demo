@@ -136,7 +136,7 @@ class CaseDocument(TimeStampedModel):
         COMPANY_REGISTRATION = "company_registration", "Company registration"
         OTHER = "other", "Other"
 
-    case = models.ForeignKey(ReviewCase, on_delete=models.CASCADE, related_name="documents")
+    case = models.ForeignKey(ReviewCase, on_delete=models.PROTECT, related_name="documents")
     document_type = models.CharField(max_length=30, choices=DocumentType.choices)
     file = models.FileField(upload_to="kyc/%Y/%m/")
     original_name = models.CharField(max_length=255)
@@ -161,7 +161,7 @@ class CaseEvent(models.Model):
         COMMENT = "comment", "Comment"
         DOCUMENT_ADDED = "document_added", "Document added"
 
-    case = models.ForeignKey(ReviewCase, on_delete=models.CASCADE, related_name="events")
+    case = models.ForeignKey(ReviewCase, on_delete=models.PROTECT, related_name="events")
     kind = models.CharField(max_length=20, choices=Kind.choices)
     actor = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name="+"

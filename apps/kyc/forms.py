@@ -51,8 +51,12 @@ class QueueFilterForm(forms.Form):
 
 def kyc_staff():
     User = get_user_model()
-    perm = Q(groups__permissions__codename="view_reviewcase") | Q(
-        user_permissions__codename="view_reviewcase"
+    perm = Q(
+        groups__permissions__codename="view_reviewcase",
+        groups__permissions__content_type__app_label="kyc",
+    ) | Q(
+        user_permissions__codename="view_reviewcase",
+        user_permissions__content_type__app_label="kyc",
     )
     return (
         User.objects.filter(is_active=True)

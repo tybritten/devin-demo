@@ -44,6 +44,8 @@ def assign(case, *, assignee, actor):
     case = ReviewCase.objects.select_for_update().get(pk=case.pk)
     if not case.is_open:
         raise ValidationError("Closed cases cannot be reassigned.")
+    if assignee is not None and not assignee.has_perm("kyc.view_reviewcase"):
+        raise ValidationError("Cases can only be assigned to users with KYC access.")
     if case.assigned_to_id == (assignee.pk if assignee else None):
         return case
     case.assigned_to = assignee
@@ -108,6 +110,8 @@ def add_comment(case, *, actor, message):
 
 @transaction.atomic
 def add_document(case, *, actor, document_type, file):
+    if not case.is_open:
+        raise ValidationError("Documents cannot be added to a closed case.")
     doc = CaseDocument.objects.create(
         case=case,
         document_type=document_type,

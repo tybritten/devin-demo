@@ -35,3 +35,5 @@ All configuration is via environment variables; see [.env.example](.env.example)
 Production needs at least `SECRET_KEY`, `DATABASE_URL`, `ALLOWED_HOSTS`,
 `CSRF_TRUSTED_ORIGINS`, `SECURE_SSL_REDIRECT=true` and `SECURE_HSTS_SECONDS`.
 The container runs `gunicorn` on port 8000; run `python manage.py migrate` on deploy.
+Uploaded documents are written to `MEDIA_ROOT` (`/app/media` in the image), which **must** be a
+persistent volume until document storage moves to blob storage.
