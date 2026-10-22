@@ -262,12 +262,12 @@ the database; on Azure, point the env var at a Key Vault reference.
 ```python
 from apps.integrations.connectors import connect
 
-crm = connect("crm-prod")                      # DataverseConnector
+crm = connect("crm-prod")  # DataverseConnector
 for row in crm.query("contacts", select=["fullname"], filter="statecode eq 0"):
     ...
-crm.update("contacts", contact_id, {"jobtitle": "CFO"})   # raises if crm-prod is read-only
+crm.update("contacts", contact_id, {"jobtitle": "CFO"})  # raises if crm-prod is read-only
 
-sp = connect("ops-sharepoint")                 # SharePointConnector (Microsoft Graph)
+sp = connect("ops-sharepoint")  # SharePointConnector (Microsoft Graph)
 for item in sp.items("Vendor List", fields=["Title", "Status"]):
     ...
 ```
@@ -288,6 +288,7 @@ Each app can define `importers.py` (generated apps get an empty one):
 ```python
 from apps.integrations.sync import Importer, Result
 
+
 class DataverseCaseImporter(Importer):
     name = "kyc.dataverse_cases"
     system = "crm-prod"
@@ -295,9 +296,10 @@ class DataverseCaseImporter(Importer):
     def fetch(self, connector):
         return connector.query("cr123_kyccases", filter="statecode eq 0")
 
-    def apply(self, record):          # own transaction; call services.py, return a Result
+    def apply(self, record):  # own transaction; call services.py, return a Result
         ...
         return Result.CREATED
+
 
 IMPORTERS = [DataverseCaseImporter]
 ```
