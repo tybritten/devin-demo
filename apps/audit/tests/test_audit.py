@@ -2,6 +2,7 @@ from datetime import timedelta
 
 import pytest
 from django.contrib.auth.models import Group, Permission
+from django.contrib.contenttypes.models import ContentType
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.db import DatabaseError, transaction
@@ -20,7 +21,9 @@ Action = AuditLog.Action
 pytestmark = pytest.mark.django_db
 
 
-def entries(action, **filters):
+def entries(action, obj=None, **filters):
+    if obj is not None:
+        filters.update(content_type=ContentType.objects.get_for_model(obj), object_id=str(obj.pk))
     return AuditLog.objects.filter(action=action, **filters)
 
 
@@ -33,31 +36,31 @@ def auditor():
 
 def test_model_create_and_update_are_diffed():
     flag = FlagFactory(key="beta.checkout", enabled=False)
-    created = entries(Action.CREATE, object_id=str(flag.pk)).get()
+    created = entries(Action.CREATE, flag).get()
     assert created.content_type.model == "featureflag"
     assert created.changes["fields"]["key"] == "beta.checkout"
 
     flag.enabled = True
     flag.save()
-    updated = entries(Action.UPDATE, object_id=str(flag.pk)).get()
+    updated = entries(Action.UPDATE, flag).get()
     assert updated.changes["fields"] == {"enabled": [False, True]}
 
     flag.save()  # no-op save writes nothing
-    assert entries(Action.UPDATE, object_id=str(flag.pk)).count() == 1
+    assert entries(Action.UPDATE, flag).count() == 1
 
 
 def test_secrets_are_masked():
     user = UserFactory(username="masked")
     user.set_password("a-new-secret-pw")
     user.save()
-    old, new = entries(Action.UPDATE, object_id=str(user.pk)).get().changes["fields"]["password"]
+    old, new = entries(Action.UPDATE, user).get().changes["fields"]["password"]
     assert old.startswith("********") and new.startswith("********") and old != new
-    assert "pbkdf2" not in str(AuditLog.objects.filter(object_id=str(user.pk)).values("changes"))
+    assert "pbkdf2" not in str(entries(Action.UPDATE, user).values("changes"))
 
     client = ApiClient(name="svc")
     raw = client.set_new_token()
     client.save()
-    logged = entries(Action.CREATE, object_id=str(client.pk)).get().changes["fields"]["token_hash"]
+    logged = entries(Action.CREATE, client).get().changes["fields"]["token_hash"]
     assert logged.startswith("********") and client.token_hash not in logged and raw not in logged
 
 
@@ -68,7 +71,7 @@ def test_request_context_is_captured(client):
     case = ReviewCaseFactory()
     resp = client.get(case.get_absolute_url(), HTTP_USER_AGENT="pytest", REMOTE_ADDR="10.1.2.3")
     assert resp.status_code == 200
-    view = entries(Action.VIEW, object_id=str(case.pk)).get()
+    view = entries(Action.VIEW, case).get()
     assert view.actor == reviewer and view.actor_label == "kycviewer"
     assert view.ip_address == "10.1.2.3" and view.user_agent == "pytest"
     assert view.request_id == resp["X-Request-ID"] and view.path == case.get_absolute_url()
@@ -100,7 +103,7 @@ def test_document_download_is_logged(client):
     )
     client.force_login(reviewer)
     assert client.get(reverse("kyc:document_download", args=[doc.pk])).status_code == 200
-    assert entries(Action.DOWNLOAD, object_id=str(doc.pk), actor=reviewer).exists()
+    assert entries(Action.DOWNLOAD, doc, actor=reviewer).exists()
 
 
 def test_login_logout_and_failed_login(client):
@@ -118,16 +121,16 @@ def test_permission_changes_are_logged():
     user = UserFactory(username="bob")
     group = Group.objects.create(name="Temp")
     user.groups.add(group)
-    added = entries(Action.PERMISSION_CHANGE, object_id=str(user.pk)).get()
+    added = entries(Action.PERMISSION_CHANGE, user).get()
     assert added.changes == {"relation": "groups", "op": "add", "objects": ["Temp"]}
 
     group.user_set.remove(user)
-    removed = entries(Action.PERMISSION_CHANGE, object_id=str(group.pk)).get()
+    removed = entries(Action.PERMISSION_CHANGE, group).get()
     assert removed.changes == {"relation": "user_set", "op": "remove", "objects": ["bob"]}
 
     group.permissions.add(Permission.objects.get(codename="view_auditlog"))
     group.permissions.clear()
-    cleared = entries(Action.PERMISSION_CHANGE, object_id=str(group.pk)).first()
+    cleared = entries(Action.PERMISSION_CHANGE, group).first()
     assert cleared.changes["op"] == "clear" and len(cleared.changes["objects"]) == 1
 
 
