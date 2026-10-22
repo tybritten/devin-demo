@@ -39,7 +39,7 @@ def get_token(system, scope, session):
         "scope": scope,
     }
     try:
-        resp = session.post(url, data=data, timeout=system.timeout_seconds)
+        resp = session.post(url, data=data, timeout=system.timeout_seconds, allow_redirects=False)
     except requests.RequestException as exc:
         raise CredentialError(
             f"{system.slug}: token request failed ({exc.__class__.__name__})"
@@ -49,10 +49,14 @@ def get_token(system, scope, session):
             f"{system.slug}: Entra rejected the token request ({resp.status_code} "
             f"{_entra_error(resp)})"
         )
-    body = resp.json()
-    token = body["access_token"]
+    try:
+        body = resp.json()
+        token = body["access_token"]
+        expires_in = int(body.get("expires_in", 3600))
+    except (ValueError, KeyError, TypeError, AttributeError) as exc:
+        raise CredentialError(f"{system.slug}: malformed token response from Entra") from exc
     with _lock:
-        _cache[key] = (token, time.monotonic() + int(body.get("expires_in", 3600)))
+        _cache[key] = (token, time.monotonic() + expires_in)
     return token
 
 

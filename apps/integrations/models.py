@@ -85,6 +85,8 @@ class ExternalSystem(TimeStampedModel):
         parts = urlsplit(self.base_url or "")
         if parts.scheme != "https":
             raise ValidationError({"base_url": "Must be an https:// URL."})
+        if parts.query or parts.fragment or parts.username or parts.port:
+            raise ValidationError({"base_url": "Remove the query string, fragment, login or port."})
         suffixes = self.HOST_SUFFIXES.get(self.kind, ())
         if not (parts.hostname or "").lower().endswith(suffixes):
             raise ValidationError(

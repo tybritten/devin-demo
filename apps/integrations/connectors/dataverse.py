@@ -1,4 +1,5 @@
 import re
+from urllib.parse import urlsplit
 
 from ..errors import IntegrationError
 from ..models import ExternalSystem
@@ -21,6 +22,10 @@ class DataverseConnector(Connector):
     @property
     def root(self):
         return self.system.base_url.rstrip("/")
+
+    @property
+    def allowed_hosts(self):
+        return {urlsplit(self.root).hostname.lower()}
 
     @property
     def scope(self):

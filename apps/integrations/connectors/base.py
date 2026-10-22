@@ -39,7 +39,15 @@ class Connector:
         """Cheapest authenticated call that proves the credentials and URL work."""
         raise NotImplementedError
 
+    @property
+    def allowed_hosts(self):
+        """Hosts this connector may send its bearer token to."""
+        raise NotImplementedError
+
     def request(self, method, url, *, headers=None, **kwargs):
+        parts = urlsplit(url)
+        if parts.scheme != "https" or (parts.hostname or "").lower() not in self.allowed_hosts:
+            raise IntegrationError(f"{self.system.slug}: refusing to send credentials to {url!r}.")
         token = get_token(self.system, self.scope, self.session)
         headers = {
             "Authorization": f"Bearer {token}",
@@ -49,13 +57,13 @@ class Connector:
         where = f"{self.system.slug}: {method} {urlsplit(url).path}"
         try:
             resp = self.session.request(
-                method, url, headers=headers, timeout=self.timeout, **kwargs
+                method, url, headers=headers, timeout=self.timeout, allow_redirects=False, **kwargs
             )
         except requests.Timeout as exc:
             raise RemoteError(f"{where} timed out after {self.timeout}s") from exc
         except requests.RequestException as exc:
             raise RemoteError(f"{where} failed ({exc.__class__.__name__})") from exc
-        if resp.status_code >= 400:
+        if resp.status_code >= 300:
             raise RemoteError(
                 f"{where} returned {resp.status_code}: {_remote_message(resp)}",
                 status=resp.status_code,
@@ -63,7 +71,12 @@ class Connector:
         return resp
 
     def get_json(self, url, **kwargs):
-        return self.request("GET", url, **kwargs).json()
+        try:
+            return self.request("GET", url, **kwargs).json()
+        except ValueError as exc:
+            raise RemoteError(
+                f"{self.system.slug}: GET {urlsplit(url).path} returned invalid JSON"
+            ) from exc
 
     def paged(self, url, *, params=None, headers=None):
         """Yield every item of an OData collection, following `@odata.nextLink`."""
@@ -89,6 +102,8 @@ class Connector:
             raise ReadOnlySystemError(
                 f"{self.system.slug} is read-only; refused {method} {resource}."
             )
+        if callable(url):  # resolved only once the write is allowed (it may need a lookup)
+            url = url()
         resp = self.request(method, url, json=json, headers=headers)
         record(Action.EXTERNAL_WRITE, obj=self.system, changes=details)
         return resp

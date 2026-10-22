@@ -100,6 +100,8 @@ def _token(mock, scope=f"{CRM}/.default"):
         ("dataverse", "https://evil.example.com"),
         ("dataverse", "https://contoso.crm.dynamics.com/main.aspx"),
         ("sharepoint", "https://contoso.crm.dynamics.com/sites/ops"),
+        ("dataverse", "https://contoso.crm.dynamics.com/?x=1"),
+        ("sharepoint", "https://contoso.sharepoint.com:8443/sites/ops"),
     ],
 )
 def test_urls_are_restricted_to_microsoft_hosts(kind, url):
@@ -321,3 +323,53 @@ def test_viewer_sees_systems_but_never_the_secret(client, crm):
     detail = client.get(crm.get_absolute_url())
     assert detail.status_code == 200
     assert b"CRM_CLIENT_SECRET" in detail.content and SECRET.encode() not in detail.content
+
+
+def test_bearer_tokens_only_go_to_the_system_over_https(crm, mock):
+    _token(mock)
+    mock.get(
+        f"{API}/contacts",
+        json={
+            "value": [],
+            "@odata.nextLink": "http://contoso.crm.dynamics.com/api/data/v9.2/contacts?p=2",
+        },
+    )
+    with pytest.raises(IntegrationError, match="refusing to send credentials"):
+        list(connect("crm").query("contacts"))
+    with pytest.raises(IntegrationError, match="refusing to send credentials"):
+        connect("crm").get_json("https://evil.example.com/steal")
+
+
+def test_redirects_are_not_followed(crm, mock):
+    mock.post(TOKEN_URL, status=307, headers={"Location": "https://evil.example.com/token"})
+    with pytest.raises(CredentialError, match="307"):
+        connect("crm").ping()
+    credentials.clear_cache()
+    _token(mock)
+    mock.get(f"{API}/WhoAmI", status=302, headers={"Location": "https://evil.example.com/x"})
+    with pytest.raises(RemoteError, match="302"):
+        connect("crm").ping()
+
+
+def test_malformed_responses_are_remote_errors(crm, mock):
+    mock.post(TOKEN_URL, body="<html>")
+    with pytest.raises(CredentialError, match="malformed token response"):
+        connect("crm").ping()
+    credentials.clear_cache()
+    _token(mock)
+    mock.get(f"{API}/teams", body="<html>")
+    run = run_import(GroupImporter())
+    assert run.status == SyncRun.Status.FAILED and "invalid JSON" in run.errors[0]["error"]
+
+
+def test_read_only_sharepoint_refuses_writes_before_any_lookup(sharepoint, mock, monkeypatch):
+    sharepoint.access = ExternalSystem.Access.READ_ONLY
+    sharepoint.save()
+    monkeypatch.delenv("CRM_CLIENT_SECRET")
+    sp = connect("ops-sp")
+    with pytest.raises(ReadOnlySystemError):
+        sp.create_item("Vendors", {"Title": "Acme"})
+    with pytest.raises(ReadOnlySystemError):
+        sp.update_item("Vendors", 7, {"Title": "Acme"})
+    assert not mock.calls
+    assert AuditLog.objects.filter(action=AuditLog.Action.EXTERNAL_WRITE).count() == 2

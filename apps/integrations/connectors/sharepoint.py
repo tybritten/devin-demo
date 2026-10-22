@@ -37,6 +37,10 @@ class SharePointConnector(Connector):
             raise IntegrationError(f"Invalid SharePoint item ID: {item_id!r}")
         return str(item_id)
 
+    @property
+    def allowed_hosts(self):
+        return {urlsplit(self.graph).hostname}
+
     def ping(self):
         return {"site_id": self.site_id}
 
@@ -54,7 +58,7 @@ class SharePointConnector(Connector):
     def create_item(self, list_name, fields):
         resp = self.write(
             "POST",
-            self._list_url(list_name, "items"),
+            lambda: self._list_url(list_name, "items"),
             resource=f"list:{list_name}",
             json={"fields": fields},
             fields=fields,
@@ -65,7 +69,7 @@ class SharePointConnector(Connector):
         item_id = self._item_id(item_id)
         self.write(
             "PATCH",
-            self._list_url(list_name, "items", item_id, "fields"),
+            lambda: self._list_url(list_name, "items", item_id, "fields"),
             resource=f"list:{list_name}",
             record_id=item_id,
             json=fields,
