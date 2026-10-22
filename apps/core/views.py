@@ -3,25 +3,16 @@ from django.db import connection
 from django.http import JsonResponse
 from django.shortcuts import render
 
-from apps.kyc.models import ReviewCase
+from apps.flags.launcher import tile as flags_tile
+from apps.kyc.launcher import tile as kyc_tile
+from apps.refunds.launcher import tile as refunds_tile
+
+# Each app exposes `launcher.tile(user)`, returning a tile dict or None if the user lacks access.
+TILE_PROVIDERS = [kyc_tile, refunds_tile, flags_tile]
 
 
 def home(request):
-    tiles = []
-    if request.user.has_perm("kyc.view_reviewcase"):
-        open_cases = ReviewCase.objects.open()
-        tiles.append(
-            {
-                "title": "KYC Review Queue",
-                "description": "Review and decide customer KYC cases.",
-                "url_name": "kyc:queue",
-                "stats": [
-                    ("Assigned to me", open_cases.filter(assigned_to=request.user).count()),
-                    ("Unassigned", open_cases.filter(assigned_to__isnull=True).count()),
-                    ("Overdue", open_cases.overdue().count()),
-                ],
-            }
-        )
+    tiles = [t for provider in TILE_PROVIDERS if (t := provider(request.user))]
     return render(request, "core/home.html", {"tiles": tiles})
 
 

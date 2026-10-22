@@ -1,6 +1,8 @@
 from django import template
 from django.utils.html import format_html
 
+from apps.core.templatetags.ui_tags import person
+
 register = template.Library()
 
 STATUS_CLASSES = {
@@ -36,8 +38,4 @@ def risk_badge(case):
     )
 
 
-@register.filter
-def person(user, default="—"):
-    if user is None:
-        return default
-    return user.get_full_name() or user.username
+register.filter("person", person)

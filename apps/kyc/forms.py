@@ -1,16 +1,12 @@
 from django import forms
-from django.contrib.auth import get_user_model
 from django.core.validators import FileExtensionValidator
-from django.db.models import Q
+
+from apps.core.forms import DateInput, UserChoiceField, users_with_perm
 
 from .models import CaseDocument, Customer, ReviewCase
 
 ALLOWED_UPLOAD_EXTENSIONS = ["pdf", "png", "jpg", "jpeg", "tif", "tiff", "heic", "docx"]
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
-
-
-class DateInput(forms.DateInput):
-    input_type = "date"
 
 
 class CustomerForm(forms.ModelForm):
@@ -50,25 +46,7 @@ class QueueFilterForm(forms.Form):
 
 
 def kyc_staff():
-    User = get_user_model()
-    perm = Q(
-        groups__permissions__codename="view_reviewcase",
-        groups__permissions__content_type__app_label="kyc",
-    ) | Q(
-        user_permissions__codename="view_reviewcase",
-        user_permissions__content_type__app_label="kyc",
-    )
-    return (
-        User.objects.filter(is_active=True)
-        .filter(perm | Q(is_superuser=True))
-        .distinct()
-        .order_by("first_name", "last_name", "username")
-    )
-
-
-class UserChoiceField(forms.ModelChoiceField):
-    def label_from_instance(self, obj):
-        return obj.get_full_name() or obj.username
+    return users_with_perm("kyc", "view_reviewcase")
 
 
 class AssignForm(forms.Form):

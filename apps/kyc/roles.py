@@ -1,6 +1,6 @@
 """Default groups for the KYC app. Synced after every `migrate` so they stay in step with code."""
 
-from django.contrib.auth.models import Group, Permission
+from apps.core.roles import sync_roles
 
 REVIEWER_GROUP = "KYC Reviewer"
 APPROVER_GROUP = "KYC Approver"
@@ -21,7 +21,4 @@ ROLES = {REVIEWER_GROUP: REVIEWER_PERMS, APPROVER_GROUP: APPROVER_PERMS}
 
 
 def ensure_roles(**kwargs):
-    for group_name, codenames in ROLES.items():
-        group, _ = Group.objects.get_or_create(name=group_name)
-        perms = Permission.objects.filter(content_type__app_label="kyc", codename__in=codenames)
-        group.permissions.add(*perms)
+    sync_roles("kyc", ROLES)

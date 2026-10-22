@@ -14,6 +14,18 @@
              href="{% url 'kyc:queue' %}">KYC Queue</a>
         </li>
         {% endif %}
+        {% if perms.refunds.view_refund %}
+        <li class="nav-item">
+          <a class="nav-link{% if request.resolver_match.namespace == 'refunds' %} active{% endif %}"
+             href="{% url 'refunds:dashboard' %}">Refunds</a>
+        </li>
+        {% endif %}
+        {% if perms.flags.view_featureflag %}
+        <li class="nav-item">
+          <a class="nav-link{% if request.resolver_match.namespace == 'flags' %} active{% endif %}"
+             href="{% url 'flags:flag_list' %}">Feature Flags</a>
+        </li>
+        {% endif %}
       </ul>
       <ul class="navbar-nav">
         {% if user.is_staff %}

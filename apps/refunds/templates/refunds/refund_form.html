@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags %}
+{% block title %}New refund{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb">
+  <li class="breadcrumb-item"><a href="{% url 'refunds:dashboard' %}">Refunds</a></li>
+  <li class="breadcrumb-item active" aria-current="page">New refund</li>
+</ol></nav>
+<h1 class="h3 mb-4">New refund request</h1>
+<div class="card shadow-sm" style="max-width: 48rem">
+  <div class="card-body">
+    <form method="post" novalidate>
+      {% csrf_token %}
+      {{ form|crispy }}
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary">Submit for approval</button>
+        <a href="{% url 'refunds:dashboard' %}" class="btn btn-outline-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
