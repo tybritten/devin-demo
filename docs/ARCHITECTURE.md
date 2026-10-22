@@ -58,12 +58,49 @@ static/            Project-wide CSS and vendored Bootstrap
 docs/              This file and future ADRs
 ```
 
-Adding a new app: `uv run python manage.py startapp <name> apps/<name>`, set
-`name = "apps.<name>"` in its `AppConfig`, add it to `INSTALLED_APPS`, mount its URLs in
-`config/urls.py` under its own prefix, add a nav link, add a `launcher.tile` to
-`apps/core/views.py:TILE_PROVIDERS`, and define its groups in a `roles.py` (using
-`apps.core.roles.sync_roles`). Shared helpers live in `apps/core` (`forms.users_with_perm`,
-`templatetags/ui_tags`, `demo` for seed commands).
+### Adding a new app
+
+```bash
+uv run python manage.py startopsapp vendor_onboarding --model VendorRequest --title "Vendor Onboarding"
+uv run python manage.py migrate
+uv run pytest apps/vendor_onboarding
+```
+
+`startopsapp` renders `apps/core/app_template/` into `apps/<label>/` and registers it: it
+appends the app to `OPS_APPS` in `config/settings.py` and makes the first migration. The
+generated app is a working, tested workflow you then reshape to the real Power App:
+
+- `models.py`: a main model (title / description / status / owner) plus an append-only
+  `<Model>Event` audit table (`on_delete=PROTECT`).
+- `services.py`: the only code that mutates records: create, update (field-level diff),
+  status transitions (`TRANSITIONS`), comments. Every change writes an event.
+- `roles.py`: `<Title> Viewer` and `<Title> Editor` groups.
+- `views.py`, `urls.py`, `forms.py`, `templates/<label>/`: list (search + status filter),
+  detail with timeline, create/edit, transition and comment endpoints.
+- `admin.py`: read-only, so admin edits can't bypass the audit trail.
+- `launcher.py`: the home-page tile. `management/commands/seed_<label>_demo.py`: picked
+  up automatically by `seed_demo`.
+- `tests/`: service rules, plus access boundaries (anonymous → login, no role → 403 on every
+  URL, viewer read-only, editor end-to-end).
+
+CI's `scaffold` job generates a throwaway app and runs its tests and linters, so the
+template can't drift from the rest of the codebase.
+
+### How core finds apps
+
+Each app's `AppConfig` subclasses `apps.core.registry.OpsAppConfig` and declares
+`nav_url_name`, `access_permission` and optionally `url_prefix` (default `<label>/`),
+`nav_label` and `order`. From that, core:
+
+- mounts `apps.<label>.urls` under the prefix (`config/urls.py: ops_urlpatterns()`),
+- shows the navbar link and home tile only to users with `access_permission`
+  (`context_processors.ops_nav`, `views.home` calling `launcher.tile(user)`),
+- syncs `roles.ROLES` into groups after every `migrate`,
+- fails `manage.py check` if an app's config is incomplete (`core.E001`–`E004`).
+
+So adding an app never means editing core, the navbar or the root URLconf. Shared helpers
+live in `apps/core` (`forms.users_with_perm`, `templatetags/ui_tags`, `demo` for seed
+commands, `tests/factories.UserFactory`).
 
 ## Security model
 

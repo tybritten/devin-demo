@@ -27,6 +27,7 @@ Open http://localhost:8000.
 uv run pytest                      # tests (needs Postgres running)
 uv run ruff check . && uv run ruff format .
 uv run python manage.py makemigrations
+uv run python manage.py startopsapp <label> --model <Model> --title "<Title>"  # new app
 docker compose --profile full up   # run the production image locally on :8000
 ```
 

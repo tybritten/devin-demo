@@ -1,14 +1,10 @@
-from django.apps import AppConfig
-from django.db.models.signals import post_migrate
+from apps.core.registry import OpsAppConfig
 
 
-class RefundsConfig(AppConfig):
-    default_auto_field = "django.db.models.BigAutoField"
+class RefundsConfig(OpsAppConfig):
     name = "apps.refunds"
     label = "refunds"
     verbose_name = "Refunds"
-
-    def ready(self):
-        from .roles import ensure_roles
-
-        post_migrate.connect(ensure_roles, sender=self)
+    nav_url_name = "refunds:dashboard"
+    access_permission = "refunds.view_refund"
+    order = 20

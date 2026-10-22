@@ -8,24 +8,12 @@
     </button>
     <div class="collapse navbar-collapse" id="mainNav">
       <ul class="navbar-nav me-auto">
-        {% if perms.kyc.view_reviewcase %}
+        {% for app in ops_nav %}
         <li class="nav-item">
-          <a class="nav-link{% if request.resolver_match.namespace == 'kyc' %} active{% endif %}"
-             href="{% url 'kyc:queue' %}">KYC Queue</a>
+          <a class="nav-link{% if request.resolver_match.namespace == app.label %} active{% endif %}"
+             href="{% url app.nav_url_name %}">{{ app.nav_label }}</a>
         </li>
-        {% endif %}
-        {% if perms.refunds.view_refund %}
-        <li class="nav-item">
-          <a class="nav-link{% if request.resolver_match.namespace == 'refunds' %} active{% endif %}"
-             href="{% url 'refunds:dashboard' %}">Refunds</a>
-        </li>
-        {% endif %}
-        {% if perms.flags.view_featureflag %}
-        <li class="nav-item">
-          <a class="nav-link{% if request.resolver_match.namespace == 'flags' %} active{% endif %}"
-             href="{% url 'flags:flag_list' %}">Feature Flags</a>
-        </li>
-        {% endif %}
+        {% endfor %}
       </ul>
       <ul class="navbar-nav">
         {% if user.is_staff %}
