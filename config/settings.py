@@ -21,6 +21,13 @@ DEBUG = env("DEBUG")
 ALLOWED_HOSTS = env("ALLOWED_HOSTS")
 CSRF_TRUSTED_ORIGINS = env("CSRF_TRUSTED_ORIGINS")
 
+# One Django app per replaced Power App. `manage.py startopsapp <name>` appends here.
+OPS_APPS = [
+    "apps.kyc",
+    "apps.refunds",
+    "apps.flags",
+]
+
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -33,9 +40,7 @@ INSTALLED_APPS = [
     "crispy_forms",
     "crispy_bootstrap5",
     "apps.core",
-    "apps.kyc",
-    "apps.refunds",
-    "apps.flags",
+    *OPS_APPS,
 ]
 
 MIDDLEWARE = [
@@ -62,6 +67,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "apps.core.context_processors.ops_nav",
             ],
         },
     },

@@ -1,7 +1,5 @@
 """Default groups for the refunds app. Synced after every `migrate`."""
 
-from apps.core.roles import sync_roles
-
 REQUESTER_GROUP = "Refunds Requester"
 APPROVER_GROUP = "Refunds Approver"
 SENIOR_APPROVER_GROUP = "Refunds Senior Approver"
@@ -14,7 +12,3 @@ ROLES = {
     SENIOR_APPROVER_GROUP: [*BASE_PERMS, "approve_refund", "approve_over_limit"],
     FINANCE_GROUP: [*BASE_PERMS, "mark_paid"],
 }
-
-
-def ensure_roles(**kwargs):
-    sync_roles("refunds", ROLES)

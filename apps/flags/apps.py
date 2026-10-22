@@ -1,14 +1,11 @@
-from django.apps import AppConfig
-from django.db.models.signals import post_migrate
+from apps.core.registry import OpsAppConfig
 
 
-class FlagsConfig(AppConfig):
-    default_auto_field = "django.db.models.BigAutoField"
+class FlagsConfig(OpsAppConfig):
     name = "apps.flags"
     label = "flags"
     verbose_name = "Feature flags"
-
-    def ready(self):
-        from .roles import ensure_roles
-
-        post_migrate.connect(ensure_roles, sender=self)
+    nav_label = "Feature Flags"
+    nav_url_name = "flags:flag_list"
+    access_permission = "flags.view_featureflag"
+    order = 30

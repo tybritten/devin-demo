@@ -1,14 +1,11 @@
-from django.apps import AppConfig
-from django.db.models.signals import post_migrate
+from apps.core.registry import OpsAppConfig
 
 
-class KycConfig(AppConfig):
-    default_auto_field = "django.db.models.BigAutoField"
+class KycConfig(OpsAppConfig):
     name = "apps.kyc"
     label = "kyc"
     verbose_name = "KYC Review"
-
-    def ready(self):
-        from .roles import ensure_roles
-
-        post_migrate.connect(ensure_roles, sender=self)
+    nav_label = "KYC Queue"
+    nav_url_name = "kyc:queue"
+    access_permission = "kyc.view_reviewcase"
+    order = 10
