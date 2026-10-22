@@ -4,6 +4,7 @@ from functools import wraps
 
 from django.contrib.auth.decorators import login_not_required
 from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET
 
 from . import services
@@ -11,6 +12,8 @@ from .models import ApiClient, FeatureFlag
 
 
 def api_client_required(view):
+    # Token-authenticated and read-only, so no session or CSRF cookie is involved.
+    @csrf_exempt
     @login_not_required
     @require_GET
     @wraps(view)

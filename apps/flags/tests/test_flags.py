@@ -1,6 +1,7 @@
 import pytest
 from django.core.exceptions import ValidationError
 from django.db.models import ProtectedError
+from django.test import Client
 from django.urls import reverse
 
 from apps.flags import services
@@ -132,7 +133,7 @@ def test_api_list_and_evaluate(client, token):
     assert client.get(url, {"target": "joe"}, **auth).json()["enabled"] is False
     missing = reverse("flags:api_flag_evaluate", args=["gone.flag"])
     assert client.get(missing, **auth).status_code == 404
-    assert client.post(url, **auth).status_code == 405
+    assert Client(enforce_csrf_checks=True).post(url, **auth).status_code == 405
     assert ApiClient.objects.get().last_used_at is not None
 
 
