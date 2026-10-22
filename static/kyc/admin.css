@@ -1,0 +1,3 @@
+/* Read-only audit inlines: hide the object label row that pushes cells out of line. */
+.inline-group .tabular td.original p { display: none; }
+.inline-group .tabular tr.has_original td { padding-top: 8px; }

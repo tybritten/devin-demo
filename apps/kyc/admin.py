@@ -1,4 +1,6 @@
 from django.contrib import admin
+from django.urls import reverse
+from django.utils.html import format_html
 
 from .models import CaseDocument, CaseEvent, Customer, ReviewCase
 
@@ -10,26 +12,36 @@ class CustomerAdmin(admin.ModelAdmin):
     search_fields = ["legal_name", "external_ref", "email"]
 
 
-class CaseDocumentInline(admin.TabularInline):
-    model = CaseDocument
+class AuditInline(admin.TabularInline):
     extra = 0
     can_delete = False
-    fields = ["document_type", "original_name", "file", "uploaded_by", "created_at"]
-    readonly_fields = fields
+
+    class Media:
+        css = {"all": ["kyc/admin.css"]}
 
     def has_add_permission(self, request, obj=None):
         return False
 
 
-class CaseEventInline(admin.TabularInline):
+class CaseDocumentInline(AuditInline):
+    model = CaseDocument
+    fields = ["document_type", "download", "uploaded_by", "created_at"]
+    readonly_fields = fields
+
+    @admin.display(description="File")
+    def download(self, obj):
+        # Media is never served directly; link to the permission-checked view.
+        return format_html(
+            '<a href="{}">{}</a>',
+            reverse("kyc:document_download", args=[obj.pk]),
+            obj.original_name,
+        )
+
+
+class CaseEventInline(AuditInline):
     model = CaseEvent
-    extra = 0
     fields = ["created_at", "kind", "actor", "from_status", "to_status", "message"]
     readonly_fields = fields
-    can_delete = False
-
-    def has_add_permission(self, request, obj=None):
-        return False
 
 
 @admin.register(ReviewCase)
