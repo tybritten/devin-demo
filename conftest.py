@@ -6,8 +6,12 @@ from apps.kyc.tests.factories import UserFactory
 
 
 @pytest.fixture(autouse=True)
-def _media_root(settings, tmp_path):
+def _test_storage(settings, tmp_path):
     settings.MEDIA_ROOT = tmp_path / "media"
+    settings.STORAGES = {
+        **settings.STORAGES,
+        "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+    }
 
 
 @pytest.fixture
