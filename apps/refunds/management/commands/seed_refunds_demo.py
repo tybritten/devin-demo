@@ -31,7 +31,7 @@ class Command(BaseCommand):
         if Refund.objects.exists():
             self.stdout.write("Refunds already seeded.")
             return
-        rng = random.Random(7)
+        rng = random.Random(7)  # noqa: S311 - deterministic demo data
         for i in range(14):
             refund = services.create_refund(
                 actor=requester,

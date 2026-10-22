@@ -15,7 +15,7 @@ uv run pre-commit install
 uv run python manage.py migrate
 uv run python manage.py createsuperuser
 uv run python manage.py seed_demo         # optional, local only: demo data + users reviewer,
-                                          # approver, finance, engineer (password: demo)
+                                          # approver, finance, engineer, auditor (password: demo)
 uv run python manage.py runserver
 ```
 
@@ -28,6 +28,7 @@ uv run pytest                      # tests (needs Postgres running)
 uv run ruff check . && uv run ruff format .
 uv run python manage.py makemigrations
 uv run python manage.py startopsapp <label> --model <Model> --title "<Title>"  # new app
+uv run python manage.py purge_audit_log   # delete audit entries past retention; schedule daily
 docker compose --profile full up   # run the production image locally on :8000
 ```
 
@@ -39,6 +40,10 @@ Production needs at least `SECRET_KEY`, `DATABASE_URL`, `ALLOWED_HOSTS`,
 The container runs `gunicorn` on port 8000; run `python manage.py migrate` on deploy.
 Uploaded documents are written to `MEDIA_ROOT` (`/app/media` in the image), which **must** be a
 persistent volume until document storage moves to blob storage.
+
+The audit log keeps entries for `AUDIT_RETENTION_DAYS` (default `365`); run `purge_audit_log`
+daily from a scheduled job. Behind a proxy (Azure Front Door / App Service) set
+`AUDIT_PROXY_COUNT` so client IPs are recorded correctly.
 
 Refunds above `REFUND_APPROVAL_LIMIT` (default `1000`, in `REFUND_CURRENCY`, default `USD`)
 need a member of **Refunds Senior Approver**.

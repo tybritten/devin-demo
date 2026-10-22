@@ -34,7 +34,7 @@ class Command(BaseCommand):
         check_demo_allowed()
         users = [demo_user(*spec) for spec in DEMO_USERS]
 
-        rng = random.Random(42)
+        rng = random.Random(42)  # noqa: S311 - deterministic demo data
         today = timezone.localdate()
         for i, name in enumerate(NAMES):
             customer, _ = Customer.objects.get_or_create(
