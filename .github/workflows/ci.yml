@@ -35,3 +35,30 @@ jobs:
           SECURE_SSL_REDIRECT: "true"
           SECURE_HSTS_SECONDS: "3600"
       - run: uv run pytest
+
+  # Generates a throwaway app with `startopsapp` and runs its tests, so the template can't rot.
+  scaffold:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: opsapps
+          POSTGRES_PASSWORD: opsapps
+          POSTGRES_DB: opsapps
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      SECRET_KEY: ci-only
+      DATABASE_URL: postgres://opsapps:opsapps@localhost:5432/opsapps
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --locked
+      - run: uv run python manage.py startopsapp scaffold_check --model ScaffoldItem --title "Scaffold Check"
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run python manage.py makemigrations --check --dry-run
+      - run: uv run python manage.py check
+      - run: uv run pytest apps/scaffold_check apps/core

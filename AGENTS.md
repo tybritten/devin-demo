@@ -6,5 +6,7 @@
   pre-commit runs ruff and a migrations check.
 - Business rules go in each app's `services.py`; views stay thin. Every case state change
   must write a `CaseEvent`.
-- New apps live in `apps/<name>` with `AppConfig.name = "apps.<name>"`.
+- Create new apps with `manage.py startopsapp <label> --model <Model> --title "<Title>"`, not by
+  copying an existing app. App configs subclass `apps.core.registry.OpsAppConfig`; never wire an
+  app into `config/urls.py`, the navbar or `apps/core/views.py` by hand.
 - Read `docs/ARCHITECTURE.md` before structural changes.
