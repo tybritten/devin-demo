@@ -1,0 +1,30 @@
+body {
+  background-color: #f5f6f8;
+}
+
+.table td,
+.table th {
+  vertical-align: middle;
+}
+
+.timeline {
+  list-style: none;
+  padding-left: 0;
+}
+
+.timeline li {
+  border-left: 2px solid var(--bs-border-color);
+  padding: 0 0 1rem 1rem;
+  position: relative;
+}
+
+.timeline li::before {
+  background: var(--bs-secondary);
+  border-radius: 50%;
+  content: "";
+  height: 10px;
+  left: -6px;
+  position: absolute;
+  top: 6px;
+  width: 10px;
+}

@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags humanize kyc_tags %}
+{% block title %}{{ case.reference }}{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'kyc:queue' %}">KYC Queue</a></li>
+    <li class="breadcrumb-item active" aria-current="page">{{ case.reference }}</li>
+  </ol>
+</nav>
+
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-4">
+  <div>
+    <h1 class="h3 mb-1">{{ case.reference }} · {{ case.customer.legal_name }}</h1>
+    <div class="d-flex gap-2 align-items-center">
+      {% status_badge case %} {% risk_badge case %}
+      <span class="text-body-secondary small">{{ case.get_review_type_display }}</span>
+      {% if case.is_overdue %}<span class="badge text-bg-danger">Overdue</span>{% endif %}
+    </div>
+  </div>
+  {% if can_edit and case.assigned_to != user %}
+  <form method="post" action="{% url 'kyc:case_claim' case.pk %}">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-outline-primary">Assign to me</button>
+  </form>
+  {% endif %}
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-8">
+    <div class="card shadow-sm mb-4">
+      <div class="card-header">Customer</div>
+      <div class="card-body">
+        <dl class="row mb-0">
+          <dt class="col-sm-4">Legal name</dt><dd class="col-sm-8">{{ case.customer.legal_name }}</dd>
+          <dt class="col-sm-4">Type</dt><dd class="col-sm-8">{{ case.customer.get_customer_type_display }}</dd>
+          <dt class="col-sm-4">External reference</dt><dd class="col-sm-8">{{ case.customer.external_ref|default:"—" }}</dd>
+          <dt class="col-sm-4">Email</dt><dd class="col-sm-8">{{ case.customer.email|default:"—" }}</dd>
+          <dt class="col-sm-4">Date of birth</dt><dd class="col-sm-8">{{ case.customer.date_of_birth|date:"M j, Y"|default:"—" }}</dd>
+          <dt class="col-sm-4">Country</dt><dd class="col-sm-8">{{ case.customer.country|default:"—" }}</dd>
+        </dl>
+        {% if case.summary %}
+        <hr>
+        <h2 class="h6">Summary</h2>
+        <p class="mb-0" style="white-space: pre-line">{{ case.summary }}</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+      <div class="card-header">Documents</div>
+      <ul class="list-group list-group-flush">
+        {% for doc in documents %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          <div>
+            <a href="{% url 'kyc:document_download' doc.pk %}">{{ doc.original_name }}</a>
+            <div class="small text-body-secondary">{{ doc.get_document_type_display }} · uploaded by {{ doc.uploaded_by|person:"unknown" }} {{ doc.created_at|naturaltime }}</div>
+          </div>
+        </li>
+        {% empty %}
+        <li class="list-group-item text-body-secondary">No documents yet.</li>
+        {% endfor %}
+      </ul>
+      {% if can_edit and perms.kyc.add_casedocument %}
+      <div class="card-body border-top">
+        <form method="post" action="{% url 'kyc:document_upload' case.pk %}" enctype="multipart/form-data" class="row g-2 align-items-end">
+          {% csrf_token %}
+          <div class="col-md-4">{{ document_form.document_type|as_crispy_field }}</div>
+          <div class="col-md-6">{{ document_form.file|as_crispy_field }}</div>
+          <div class="col-md-2 mb-3"><button type="submit" class="btn btn-outline-primary w-100">Upload</button></div>
+        </form>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="card shadow-sm">
+      <div class="card-header">Activity</div>
+      <div class="card-body">
+        {% if can_edit %}
+        <form method="post" action="{% url 'kyc:case_comment' case.pk %}" class="mb-4">
+          {% csrf_token %}
+          {{ comment_form|crispy }}
+          <button type="submit" class="btn btn-sm btn-outline-secondary">Comment</button>
+        </form>
+        {% endif %}
+        <ul class="timeline mb-0">
+          {% for event in events %}
+          <li>
+            <div class="small text-body-secondary">
+              <strong class="text-body">{{ event.actor|person:"System" }}</strong>
+              · <span title="{{ event.created_at }}">{{ event.created_at|naturaltime }}</span>
+            </div>
+            <div>
+              {% if event.kind == "status_changed" %}
+              Moved from <strong>{{ event.get_from_status_display }}</strong> to <strong>{{ event.get_to_status_display }}</strong>
+              {% elif event.kind == "created" %}
+              Created the case
+              {% elif event.kind != "comment" %}
+              {{ event.get_kind_display }}{% if event.message %}: {{ event.message }}{% endif %}
+              {% endif %}
+            </div>
+            {% if event.message and event.kind == "comment" or event.message and event.kind == "status_changed" %}
+            <div class="bg-body-tertiary rounded p-2 mt-1" style="white-space: pre-line">{{ event.message }}</div>
+            {% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    {% if transition_form and can_edit %}
+    <div class="card shadow-sm mb-4 border-primary">
+      <div class="card-header">Decision / next step</div>
+      <div class="card-body">
+        <form method="post" action="{% url 'kyc:case_transition' case.pk %}">
+          {% csrf_token %}
+          {{ transition_form|crispy }}
+          <button type="submit" class="btn btn-primary">Update status</button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="card shadow-sm mb-4">
+      <div class="card-header">Details</div>
+      <div class="card-body">
+        <dl class="row mb-0 small">
+          <dt class="col-5">Assigned to</dt>
+          <dd class="col-7">{{ case.assigned_to|person:"Unassigned" }}</dd>
+          <dt class="col-5">Due</dt><dd class="col-7">{{ case.due_date|date:"M j, Y"|default:"—" }}</dd>
+          <dt class="col-5">Opened</dt><dd class="col-7">{{ case.created_at|date:"M j, Y H:i" }}</dd>
+          <dt class="col-5">Opened by</dt><dd class="col-7">{{ case.created_by|person:"—" }}</dd>
+          {% if case.decided_at %}
+          <dt class="col-5">Decided</dt><dd class="col-7">{{ case.decided_at|date:"M j, Y H:i" }}</dd>
+          <dt class="col-5">Decided by</dt><dd class="col-7">{{ case.decided_by|person }}</dd>
+          {% endif %}
+        </dl>
+        {% if can_edit %}
+        <hr>
+        <form method="post" action="{% url 'kyc:case_assign' case.pk %}">
+          {% csrf_token %}
+          {{ assign_form|crispy }}
+          <button type="submit" class="btn btn-sm btn-outline-secondary">Reassign</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if other_cases %}
+    <div class="card shadow-sm">
+      <div class="card-header">Other cases for this customer</div>
+      <ul class="list-group list-group-flush">
+        {% for other in other_cases %}
+        <li class="list-group-item d-flex justify-content-between">
+          <a href="{{ other.get_absolute_url }}">{{ other.reference }}</a> {% status_badge other %}
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
