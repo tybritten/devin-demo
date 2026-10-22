@@ -131,11 +131,15 @@ security trail across everything.
 | Views/downloads of sensitive records (KYC cases, documents) | `apps.audit.log.log_view(request, obj)` in the view |
 | Token-authenticated API calls | `record(Action.API_ACCESS, ...)` in the API decorator (`AUDIT_API_ACCESS`) |
 
-- Each entry stores actor (plus a username snapshot that survives user deletion), IP, user agent,
+- Each entry stores actor (plus a username snapshot), IP, user agent,
   method, path and a request ID. `AuditContextMiddleware` reuses a well-formed upstream
   `X-Request-ID` (e.g. from Azure Front Door) or generates one, and echoes it in the response.
   Set `AUDIT_PROXY_COUNT` to the number of trusted proxies so the client IP is taken from
   `X-Forwarded-For`.
+- Users are never deleted: a `pre_delete` guard raises `ProtectedError`, and the user admin
+  has no delete, only **Deactivate** / **Reactivate** actions (`apps.core.users`). Inactive
+  users can't sign in, their existing sessions stop working, and they drop out of assignee
+  pickers, while their name stays on the records and audit entries they touched.
 - Fields whose names contain `password`, `secret`, `token`, `api_key`, `private_key` or
   `credential` are logged only as a masked fingerprint.
 - A Postgres trigger rejects `UPDATE`/`DELETE` on the table. The only exception is

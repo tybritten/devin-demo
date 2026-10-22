@@ -12,6 +12,7 @@ from django.utils import timezone
 from apps.audit.models import AuditLog
 from apps.audit.roles import AUDITOR_GROUP
 from apps.core.tests.factories import UserFactory
+from apps.core.users import deactivate
 from apps.flags.models import ApiClient
 from apps.flags.tests.factories import FlagFactory
 from apps.kyc.models import CaseDocument
@@ -163,11 +164,11 @@ def test_entries_are_append_only_in_the_database():
     assert AuditLog.objects.get(pk=entry.pk).actor_label == "x"
 
 
-def test_deleting_a_user_keeps_their_audit_trail():
+def test_user_deactivation_is_audited():
     user = UserFactory(username="leaver")
-    AuditLog.objects.create(action=Action.LOGIN, actor=user, actor_label="leaver")
-    user.delete()
-    assert entries(Action.LOGIN, actor_label="leaver").exists()
+    deactivate([user])
+    change = entries(Action.UPDATE, user).get()
+    assert change.changes["fields"]["is_active"] == [True, False]
 
 
 def test_purge_respects_retention(settings):
