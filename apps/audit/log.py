@@ -6,7 +6,7 @@ from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.utils.text import Truncator
 
-from .context import current_request
+from .context import current_request, system_actor
 from .models import AuditLog
 
 Action = AuditLog.Action
@@ -38,7 +38,7 @@ def record(action, *, obj=None, changes=None, actor=FROM_REQUEST, actor_label=""
     entry = AuditLog(
         action=action,
         actor=actor,
-        actor_label=actor_label or (actor.get_username() if actor else ""),
+        actor_label=actor_label or (actor.get_username() if actor else system_actor()),
         changes=changes or {},
     )
     if obj is not None:

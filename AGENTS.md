@@ -13,4 +13,7 @@
   in views that show sensitive records (PII, documents). Never write secrets into audit `changes`.
 - Every URL must pass `apps/core/tests/test_access_boundaries.py`; only add to its allowlists for
   a reviewed reason.
+- Talk to Dataverse/SharePoint only through `apps.integrations.connectors.connect(<slug>)`;
+  never call external APIs or read their secrets directly from app code. Scheduled pulls are
+  `Importer`s in the app's `importers.py`. Mock HTTP with `responses` in tests.
 - Read `docs/ARCHITECTURE.md` before structural changes.

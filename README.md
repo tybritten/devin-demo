@@ -15,7 +15,7 @@ uv run pre-commit install
 uv run python manage.py migrate
 uv run python manage.py createsuperuser
 uv run python manage.py seed_demo         # optional, local only: demo data + users reviewer,
-                                          # approver, finance, engineer, auditor (password: demo)
+                                          # approver, finance, engineer, auditor, integrator (password: demo)
 uv run python manage.py runserver
 ```
 
@@ -29,6 +29,8 @@ uv run ruff check . && uv run ruff format .
 uv run python manage.py makemigrations
 uv run python manage.py startopsapp <label> --model <Model> --title "<Title>"  # new app
 uv run python manage.py purge_audit_log   # delete audit entries past retention; schedule daily
+uv run python manage.py run_import --list # importers from Dataverse/SharePoint; --all to run
+uv run python manage.py check_integration <slug>  # test an external system's credentials
 docker compose --profile full up   # run the production image locally on :8000
 ```
 

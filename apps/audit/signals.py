@@ -22,7 +22,7 @@ def audited_models():
     models = [get_user_model(), Group]
     for app in ops_apps():
         if app.label != "audit":
-            models.extend(app.get_models())
+            models.extend(m for m in app.get_models() if not getattr(m, "audit_skip", False))
     return models
 
 

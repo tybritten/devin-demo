@@ -1,0 +1,1 @@
+{% if run %}<span class="badge text-bg-{% if run.status == 'succeeded' %}success{% elif run.status == 'running' %}info{% elif run.status == 'partial' %}warning{% else %}danger{% endif %}">{{ run.get_status_display }}</span>{% else %}<span class="text-body-secondary">Never run</span>{% endif %}

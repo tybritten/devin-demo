@@ -246,6 +246,73 @@ Raising the percentage only adds targets. Without a target, partial flags evalua
 - **API** (`/flags/api/v1/flags/`, `/flags/api/v1/flags/<key>/?target=`): GET only, bearer token.
   Django admin is read-only for flags; API clients are managed there.
 
+## Integrations (`apps/integrations`)
+
+External systems are registered as data, not code: an `ExternalSystem` row (Django admin)
+holds the kind (**Dataverse** or **SharePoint**), the URL, the Entra app's tenant and client
+IDs, the *name* of the env var holding its client secret, and an access mode:
+
+- **Read-only**: `Connector.write()` refuses every write (`ReadOnlySystemError`) before any
+  HTTP call and logs the attempt as a blocked `external_write` audit entry.
+- **Read-write**: writes go through, and each is audited (`external_write`, field names only).
+
+Changing a system's access mode is itself an audited model change. Secrets never live in
+the database; on Azure, point the env var at a Key Vault reference.
+
+```python
+from apps.integrations.connectors import connect
+
+crm = connect("crm-prod")                      # DataverseConnector
+for row in crm.query("contacts", select=["fullname"], filter="statecode eq 0"):
+    ...
+crm.update("contacts", contact_id, {"jobtitle": "CFO"})   # raises if crm-prod is read-only
+
+sp = connect("ops-sharepoint")                 # SharePointConnector (Microsoft Graph)
+for item in sp.items("Vendor List", fields=["Title", "Status"]):
+    ...
+```
+
+- **Auth**: Entra client-credentials tokens (`credentials.py`), cached in-process until just
+  before expiry. Dataverse uses `<env URL>/.default`, SharePoint uses Graph.
+- **HTTP**: one `requests` session per connector, per-system timeout (default 30s), and
+  retries with backoff on 429/5xx for reads only. Writes are never retried automatically.
+- **Guard rails**: URLs must be https on `*.dynamics.com` / `*.sharepoint.com`, so tokens
+  can't be sent elsewhere; `@odata.nextLink` must stay on the same host; entity set names,
+  record GUIDs and list item IDs are validated before they go into a URL. Remote errors are
+  raised as `RemoteError` with the OData/Graph error code and message only.
+
+### Importers (scheduled pulls)
+
+Each app can define `importers.py` (generated apps get an empty one):
+
+```python
+from apps.integrations.sync import Importer, Result
+
+class DataverseCaseImporter(Importer):
+    name = "kyc.dataverse_cases"
+    system = "crm-prod"
+
+    def fetch(self, connector):
+        return connector.query("cr123_kyccases", filter="statecode eq 0")
+
+    def apply(self, record):          # own transaction; call services.py, return a Result
+        ...
+        return Result.CREATED
+
+IMPORTERS = [DataverseCaseImporter]
+```
+
+`manage.py run_import <name>` / `--all` / `--list` runs them. Each run writes a `SyncRun`
+(fetched / created / updated / unchanged / failed, first 50 errors); one bad record doesn't
+stop the run, and the command exits non-zero unless every run fully succeeded, so the
+scheduler can alert. Audit entries written during an import are attributed to
+`import:<name>`. `manage.py check_integration <slug>` tests credentials and connectivity.
+
+On Azure, schedule `run_import --all` (and `purge_audit_log`) as Container Apps jobs using
+the same image. **Integrations Viewer** sees systems and runs at `/integrations/`;
+**Integrations Admin** (plus `is_staff`) registers and edits systems in the admin.
+Adding another kind of system means a new `Connector` subclass and a `Kind` choice.
+
 ## Roadmap / open decisions
 
 1. **SSO**: Microsoft Entra ID via OIDC (`mozilla-django-oidc` or `django-allauth`), mapping
@@ -253,7 +320,8 @@ Raising the percentage only adds targets. Without a target, partial flags evalua
 2. **Hosting**: any container platform works (the `Dockerfile` is production-ready). Azure
    Container Apps / App Service + Azure Database for PostgreSQL fits an M365 shop.
 3. **Document storage**: Azure Blob or S3 via `django-storages` once hosted.
-4. **Data migration** from the Power Apps data source (Dataverse / SharePoint lists) via a
-   one-off management command that writes through `services.py`.
-5. **Intake integrations**: an API or scheduled import to create cases from upstream systems.
+4. **Data migration** from the Power Apps data source: an `Importer` per app (see
+   Integrations) once the real Dataverse tables / SharePoint lists are known.
+5. **Managed identity**: swap the Entra client secret for the Container App's managed
+   identity once hosted on Azure.
 6. **Interactivity**: htmx for inline updates (e.g. claim from the queue without a reload).
